@@ -228,3 +228,36 @@ def test_roboflow_gt(cfg_dir, tmp_path):
     boxes = gt[root / "valid/images/a.png"]
     assert len(boxes) == 1 and boxes[0]["label"] == "plate"
     assert boxes[0]["xyxy"] == pytest.approx([80, 30, 120, 90])
+
+
+# ---------------------------------------------------------------- report
+def test_report_with_clips(cfg_dir, eval_setup):
+    from gccvt.media import probe
+    from gccvt.report import build
+    data = eval_setup
+    assert runner.main(["--config-dir", str(cfg_dir), "--run-id", "r2"]) == 0
+    assert build.main(["--config-dir", str(cfg_dir)]) == 0  # latest run
+    run = data / "results/r2"
+    html = (run / "report.html").read_text()
+    for needle in ("Plate detection AP", "Plate exact match by country", "Worst failures", "<video",
+                   "clips/plate-ksa-day-clip_0001.mp4", "١٢٣٤ ا ب ح", "Face recognition"):
+        assert needle in html, needle
+    clip = probe(run / "clips/plate-ksa-day-clip_0001.mp4")
+    assert clip["frame_count"] == 4 and clip["height"] == 120
+    assert probe(run / "clips/face-chokepoint-P1E_S2_C1.mp4")["frame_count"] == 2
+    assert (run / "clips/plate-ksa-day-clip_0001.jpg").is_file()  # poster
+    assert 'poster="clips/plate-ksa-day-clip_0001.jpg"' in html
+    fails = sorted(p.name for p in (run / "clips/failures").glob("*.mp4"))
+    assert fails == ["false_positives_000.mp4", "missed_detections_000.mp4",
+                     "plate_misreads_000.mp4", "plate_misreads_001.mp4"]
+    assert 'src="clips/failures/missed_detections_000.mp4"' in html
+
+    assert build.main(["--config-dir", str(cfg_dir), "--run", "r2", "--no-clips"]) == 0
+    assert "<video" not in (run / "report.html").read_text()
+
+
+def test_report_no_runs(cfg_dir):
+    from gccvt.errors import GccvtError
+    from gccvt.report import build
+    with pytest.raises(GccvtError, match="make eval"):
+        build.main(["--config-dir", str(cfg_dir)])

@@ -3,8 +3,8 @@
 Collects and organises test video for evaluating **face detection/recognition** and **licence-plate
 recognition** for Saudi and GCC plates (KSA, UAE, Qatar, Kuwait, Oman, Bahrain).
 
-**Status:** collection, preprocessing and evaluation work and are tested. The HTML report is
-next (see [Roadmap](#roadmap)).
+**Status:** all four stages work and are tested: collection, preprocessing, evaluation, and
+an HTML report with annotated video clips.
 
 > Read [DATA_NOTICE.md](DATA_NOTICE.md) before collecting anything.
 
@@ -247,6 +247,45 @@ Models are defined in `config/models.yaml`. Each one has up to four roles: `plat
 roles with identical settings share one loaded instance. Keep the detector confidence low there
 (e.g. 0.05), because AP needs the low-scoring detections too.
 
+## Report and annotated clips
+
+```bash
+make report                          # latest eval run
+make report ARGS="--run baseline_20261015-120000"
+make report ARGS="--no-clips"        # tables and charts only (fast)
+```
+
+This writes `data/results/{run_id}/report.html` next to the clips. Open it from that folder,
+or copy the whole folder to share it.
+
+**Annotated clips** (`clips/{clip_id}.mp4`): every evaluated frame of a clip, encoded as H.264 MP4
+with the following drawn on:
+
+| Colour | Tag | Meaning |
+|---|---|---|
+| Green | the GT text | ground truth that was detected |
+| Blue | score, plate read, ✓/✗ | detection matched to ground truth |
+| Red | `MISSED` | ground truth with no detection |
+| Orange | `FALSE +` | detection with no ground truth |
+
+Plate text is drawn with a font that has Arabic glyphs (`report.fonts`). With Pillow's raqm
+support it is also shaped correctly.
+
+**Failure clips** (`clips/failures/*.mp4`): a few frames before and after each of the worst missed
+detections, false positives and misreads, played at half speed. The failure is outlined in yellow.
+
+**The report page** contains:
+- headline numbers;
+- day-vs-night charts per country (detection AP, recall, plate exact match, CER), each with a
+  table view;
+- every clip's video and a per-clip results table, worst clip first;
+- the failure gallery;
+- full breakdown tables;
+- the settings used.
+
+It supports light and dark mode and works on a phone. The playback speed, size and frame cap
+for clips are under `report:` in `config/eval.yaml`.
+
 ## Data layout
 ## Data layout
 
@@ -260,7 +299,7 @@ data/
   frames/{clip_id}/          extracted frames + index.csv (+ _duplicates/)
   annotations/{clip_id}/     draft labels: yolo/, cvat/annotations.xml, predictions.jsonl
   annotations/{clip_id}/gt/  corrected ground truth (CVAT XML or YOLO) used by evaluation
-  results/{run_id}/          evaluation runs
+  results/{run_id}/          evaluation runs: metrics, predictions, report.html, clips/*.mp4
   manifest.csv
 ```
 
@@ -328,4 +367,4 @@ To use it, reference it in config as `adapter: "mypackage.my_module:MyPlateModel
 - [x] Prep: frame extraction, perceptual-hash de-duplication, YOLO/CVAT pre-annotation
 - [x] Eval: adapter runner; face/plate P/R/AP/mAP; plate exact match, CER and digit accuracy with
       Arabic/Latin normalisation; ChokePoint rank-1/EER; breakdowns; worst-failure crops
-- [ ] HTML report with tables, charts and worst-failure examples
+- [x] HTML report: tables, day/night charts, annotated clips, failure clips

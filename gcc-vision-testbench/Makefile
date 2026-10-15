@@ -18,6 +18,7 @@ help:
 	@echo "make extract / dedupe / preannotate   run one prep step"
 	@echo "make install-models   optional detector dependencies (ultralytics, insightface)"
 	@echo "make eval             run the default model (config/models.yaml) on labelled clips"
+	@echo "make report           HTML report + annotated video clips for the latest eval run"
 	@echo "make test             run unit tests"
 	@echo "Pass extra flags with ARGS, e.g. make collect-youtube ARGS='--dry-run --country ksa'"
 
@@ -64,8 +65,7 @@ eval:
 	$(PY) scripts/eval/run_eval.py $(ARGS)
 
 report:
-	@echo "'make report' is not implemented yet (see README roadmap)." >&2
-	@exit 1
+	$(PY) scripts/eval/build_report.py $(ARGS)
 
 test:
 	$(PY) -m pytest -q

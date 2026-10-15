@@ -46,3 +46,22 @@ breakdown: [country, condition, source, clip_id]
 failures:
   per_type: 25                  # worst examples kept per failure type (with crops)
   context: 0.6                  # crop margin around the box, as a fraction of its size
+
+report:
+  clips:
+    enabled: true            # annotated MP4 per evaluated clip (GT + predictions drawn on frames)
+    playback_fps: 2          # = extraction fps plays in real time; lower = slower
+    max_height: 720          # downscale for size
+    max_frames: 600          # per clip video; longer clips are evenly sampled
+    crf: 23
+  failure_clips:
+    per_type: 5              # short clips around the worst failures of each type
+    window: 3                # evaluated frames before/after the failure frame
+  # Fonts tried in order for on-frame labels (one with Arabic glyphs shows plate text properly)
+  fonts:
+    - /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+    - /usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf
+    - /Library/Fonts/Arial Unicode.ttf
+    - /System/Library/Fonts/Supplemental/Arial Unicode.ttf
+    - C:/Windows/Fonts/arial.ttf
+    - DejaVuSans.ttf
