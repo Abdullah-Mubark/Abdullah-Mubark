@@ -1,0 +1,22 @@
+# Plate datasets from Roboflow Universe. The API key comes from ROBOFLOW_API_KEY (.env).
+#
+# Each entry needs a country plus one of:
+#   slug: "workspace/project/version"
+#   url:  "https://universe.roboflow.com/<workspace>/<project>/dataset/<version>"
+#   workspace / project / version as separate keys
+#
+# Find datasets at https://universe.roboflow.com (search e.g. "saudi license plate").
+# The entries below are placeholders: replace them and set enabled: true.
+api_url: "https://api.roboflow.com"
+format: yolov8
+export_poll_s: 10        # export generation can take a while on first request
+export_timeout_s: 900
+
+datasets:
+  - slug: "your-workspace/saudi-plates/1"
+    country: ksa
+    enabled: false
+    notes: "replace with a real Universe dataset"
+  - url: "https://universe.roboflow.com/your-workspace/uae-plates/dataset/1"
+    country: uae
+    enabled: false

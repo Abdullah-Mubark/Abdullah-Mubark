@@ -1,0 +1,10 @@
+# Core (collection)
+PyYAML>=6.0
+requests>=2.31
+python-dotenv>=1.0
+yt-dlp>=2024.10.22
+
+# Dev
+pytest>=8.0
+
+# System tools (not pip): ffmpeg + ffprobe must be on PATH.

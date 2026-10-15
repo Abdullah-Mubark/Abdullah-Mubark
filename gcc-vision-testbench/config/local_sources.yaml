@@ -1,0 +1,19 @@
+# Your own recorded footage. See DATA_NOTICE.md: footage of people (and their plates)
+# is personal data under Saudi PDPL / UAE PDPL - you need consent and a lawful basis.
+# Set consent_ack: true to confirm this (or pass --consent-ack on the command line).
+consent_ack: false
+
+extensions: [.mp4, .mov, .mkv, .avi, .m4v, .ts, .mts]
+
+sources:
+  # - path: /path/to/footage/riyadh_night
+  #   task: plate        # plate | face
+  #   country: ksa       # omit to infer from folder names (e.g. .../ksa/night/x.mp4)
+  #   condition: night   # omit to infer
+  #   mode: copy         # copy | link | transcode (re-encode to 1080p mp4)
+  #   recursive: true
+  #
+  # - path: /path/to/footage/office_entrance
+  #   task: face
+  #   dataset: office_entrance   # -> data/faces/office_entrance/
+  #   mode: copy
