@@ -3,8 +3,8 @@
 Collects and organises test video for evaluating **face detection/recognition** and **licence-plate
 recognition** for Saudi and GCC plates (KSA, UAE, Qatar, Kuwait, Oman, Bahrain).
 
-**Status:** the data-collection stage works and is tested. Frame extraction, de-duplication,
-pre-annotation, evaluation and the HTML report are the next steps (see [Roadmap](#roadmap)).
+**Status:** collection and preprocessing (frame extraction, de-duplication, pre-annotation) work
+and are tested. Evaluation and the HTML report are next (see [Roadmap](#roadmap)).
 
 > Read [DATA_NOTICE.md](DATA_NOTICE.md) before collecting anything.
 
@@ -17,6 +17,7 @@ cd gcc-vision-testbench
 make install            # creates .venv, installs requirements, copies .env.example -> .env
 # edit .env: set ROBOFLOW_API_KEY (only needed for Roboflow)
 make test
+make install-models   # optional: detectors for pre-annotation
 ```
 
 ## Collecting data
@@ -108,6 +109,63 @@ Modes: `copy` (default, keeps the original format), `link` (hard link or symlink
 space), `transcode` (re-encode to 1080p MP4). Files are de-duplicated by SHA-256. You can also list
 sources in `config/local_sources.yaml` and run `make collect-local`.
 
+## Preprocessing
+
+```bash
+make prep                 # = make extract dedupe preannotate
+make extract ARGS="--fps 5 --country ksa"
+make dedupe ARGS="--threshold 4"
+make dedupe ARGS="--undo"  # put all duplicates back
+```
+
+All settings are in `config/prep.yaml`. Every step accepts `--clip`, `--task`, `--country`,
+`--condition`, `--force` and `--dry-run`. Steps are skipped when nothing has changed, and
+re-run automatically when their settings or input change.
+
+### Frame extraction
+
+Takes every clip in the manifest at `extract.fps` (default 2, never more than the source fps).
+Output goes to `data/frames/{clip_id}/000000.jpg`. Each clip folder gets an `index.csv` with the
+frame name, timestamp and source frame number. ChokePoint image sequences are subsampled and
+hard-linked rather than re-encoded. They keep their original file names so the ground truth still
+matches. Roboflow image datasets are skipped because they're already images.
+
+### De-duplication
+
+Each frame gets a perceptual hash (`phash` or `dhash`). A frame counts as a duplicate when its
+hash is within `threshold` bits of one of the last `window` kept frames. Duplicates are recorded
+in `index.csv` (`status`, `dup_of`), and `action` decides what happens to them:
+
+- `move` (default): moved to `_duplicates/`. If you change the settings and re-run, they are
+  restored and checked again.
+- `delete`: removed for good.
+- `mark`: left in place, recorded in `index.csv` only.
+
+Dedupe is **off for ChokePoint** by default (`dedupe.overrides`). With a fixed camera and small
+faces, a whole-frame hash barely changes when a person walks past, so it would drop real frames.
+Turn it on or off per source or per task in the same place.
+
+### Pre-annotation (optional)
+
+Runs detectors over the kept frames and writes draft labels for correction in CVAT to
+`data/annotations/{clip_id}/`:
+
+- `yolo/labels/*.txt`, `yolo/classes.txt`, `yolo/images.txt`: YOLO format. Class ids follow
+  `preannotate.classes`.
+- `cvat/annotations.xml`: CVAT for images 1.1. Import it into a CVAT task built from the same
+  frames; boxes are marked `source="auto"`.
+- `predictions.jsonl`: every box with its confidence score.
+
+To turn it on:
+
+1. Run `make install-models`.
+2. Set `enabled: true` on a detector in `config/prep.yaml`.
+3. For plates, point `weights:` at a YOLOv8 plate model, for example one trained on your
+   Roboflow datasets. No official GCC plate weights exist.
+4. For faces, use `adapter: insightface` (RetinaFace family) or `adapter: yolov8` with
+   YOLOv8-face weights.
+
+## Data layout
 ## Data layout
 
 ```
@@ -117,7 +175,8 @@ data/
   faces/{dataset}/clip_NNNN.*
   plates/{country}/{day|night}/clip_NNNN.mp4 (+ clip_NNNN.json)
   plates_images/{country}/{workspace}__{project}__v{N}/   YOLOv8 export
-  frames/                    (prep stage)
+  frames/{clip_id}/          extracted frames + index.csv (+ _duplicates/)
+  annotations/{clip_id}/     draft labels: yolo/, cvat/annotations.xml, predictions.jsonl
   manifest.csv
 ```
 
@@ -146,25 +205,43 @@ Add a module in `src/gccvt/collect/` with a `main(argv)` function, and a wrapper
 
 Give each item a stable `source_key` so re-runs skip it.
 
-## Plugging in a model (planned interface)
+## Plugging in a model
 
-Evaluation is the next stage. Models will implement a small adapter:
+Pre-annotation (and later evaluation) uses one small interface in `src/gccvt/adapters/base.py`.
+Frames are numpy arrays, HxWx3 uint8, in **BGR** order (OpenCV convention).
 
 ```python
-class ModelAdapter(Protocol):
-    name: str
-    tasks: set[str]                                   # face_det, face_rec, plate_det, plate_ocr
-    def load(self, **kwargs) -> None: ...
-    def detect(self, frame: np.ndarray) -> list[Box]: ...      # Box: xyxy, score, label
-    def read_plate(self, crop: np.ndarray) -> PlateRead: ...   # PlateRead: text, score
-    def embed_face(self, crop: np.ndarray) -> np.ndarray: ...  # optional, for recognition
+from gccvt.adapters import BaseAdapter, Box, PlateRead, register
+
+@register("my_plate_model")
+class MyPlateModel(BaseAdapter):
+    tasks = {"plate_det", "plate_ocr"}            # face_det, face_rec, plate_det, plate_ocr
+
+    def load(self, weights, conf=0.3, **kwargs):  # kwargs = `params:` from the config
+        self.model = ...
+
+    def detect(self, frame) -> list[Box]:         # Box(x1, y1, x2, y2, score, label, meta)
+        return [Box(x1, y1, x2, y2, score, "plate") for ...]
+
+    def read_plate(self, crop) -> PlateRead:      # used by evaluation
+        return PlateRead(text="أ ب ج 1234", score=0.9)
+
+    def embed_face(self, crop):                   # optional, for face recognition
+        ...
 ```
+
+You only implement the methods your model supports; the rest raise `NotImplementedError`.
+To use it, reference it in config as `adapter: "mypackage.my_module:MyPlateModel"`, or add it to
+`_BUILTIN` in `adapters/registry.py`. There are two built-in adapters:
+
+- `yolov8`: any Ultralytics model. AGPL-3.0.
+- `insightface`: RetinaFace-family face detection plus ArcFace embeddings. The pretrained packs
+  are for non-commercial use only.
 
 ## Roadmap
 
 - [x] Collection: ChokePoint, Roboflow, YouTube, local footage, manifest
-- [ ] `scripts/prep/`: frame extraction (default 2 fps), perceptual-hash de-duplication,
-      optional YOLOv8 / RetinaFace pre-annotation to YOLO/CVAT format
+- [x] Prep: frame extraction, perceptual-hash de-duplication, YOLO/CVAT pre-annotation
 - [ ] `scripts/eval/`: adapter runner; face P/R/mAP and ChokePoint recognition accuracy; plate mAP,
       exact match and CER with Arabic/Latin normalisation (٠-٩ → 0-9); breakdowns by country,
       day/night and clip

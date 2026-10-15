@@ -4,6 +4,10 @@ requests>=2.31
 python-dotenv>=1.0
 yt-dlp>=2024.10.22
 
+# Prep
+Pillow>=10.0
+numpy>=1.26
+
 # Dev
 pytest>=8.0
 

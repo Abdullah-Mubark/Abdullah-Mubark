@@ -13,6 +13,13 @@ This repository contains **code only**. Data collected with it stays on your mac
 
 Downloading a dataset with these scripts does not change its licence.
 
+## Model weights used for pre-annotation
+
+Detector weights also come with their own licences. Ultralytics YOLOv8 code and its official
+weights are AGPL-3.0. InsightFace's pretrained model packs are for non-commercial research only.
+Draft labels produced with these models are still your own data, but check the licence before
+using a model in a product.
+
 ## YouTube clips: internal testing only
 
 Clips taken from YouTube are third-party copyrighted material, and downloading them may conflict

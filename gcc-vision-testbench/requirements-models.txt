@@ -1,0 +1,12 @@
+# Optional: reference detectors for pre-annotation (and later evaluation).
+# Install only what you use. Check licences: see DATA_NOTICE.md / README.
+-r requirements.txt
+
+# yolov8 adapter (plate or face weights). AGPL-3.0.
+ultralytics>=8.2
+
+# insightface adapter (RetinaFace-family face detector). Code MIT; pretrained
+# model packs are for non-commercial research use.
+insightface>=0.7.3
+onnxruntime>=1.17
+opencv-python-headless>=4.9

@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 ARGS ?=
 
 .PHONY: help venv install collect collect-faces collect-roboflow collect-youtube collect-local \
-        manifest prep eval report test clean-logs
+        manifest prep extract dedupe preannotate install-models eval report test clean-logs
 
 help:
 	@echo "make install          create .venv and install requirements"
@@ -14,6 +14,9 @@ help:
 	@echo "make collect-youtube  YouTube segments -> 1080p clips"
 	@echo "make collect-local    your own footage (config/local_sources.yaml)"
 	@echo "make manifest         summary of data/manifest.csv"
+	@echo "make prep             extract frames, dedupe, pre-annotate (if detectors enabled)"
+	@echo "make extract / dedupe / preannotate   run one prep step"
+	@echo "make install-models   optional detector dependencies (ultralytics, insightface)"
 	@echo "make test             run unit tests"
 	@echo "Pass extra flags with ARGS, e.g. make collect-youtube ARGS='--dry-run --country ksa'"
 
@@ -24,6 +27,9 @@ install: venv
 	.venv/bin/pip install -U pip
 	.venv/bin/pip install -r requirements.txt
 	@test -f .env || (cp .env.example .env && echo "Created .env - add your ROBOFLOW_API_KEY")
+
+install-models: venv
+	.venv/bin/pip install -r requirements-models.txt
 
 collect: collect-faces collect-roboflow collect-youtube collect-local manifest
 
@@ -42,8 +48,19 @@ collect-local:
 manifest:
 	$(PY) scripts/collect/manifest_summary.py
 
-prep eval report:
-	@echo "'make $@' is not implemented yet - collection is done first (see README roadmap)." >&2
+prep: extract dedupe preannotate
+
+extract:
+	$(PY) scripts/prep/extract_frames.py $(ARGS)
+
+dedupe:
+	$(PY) scripts/prep/dedupe.py $(ARGS)
+
+preannotate:
+	$(PY) scripts/prep/preannotate.py $(ARGS)
+
+eval report:
+	@echo "'make $@' is not implemented yet (see README roadmap)." >&2
 	@exit 1
 
 test:

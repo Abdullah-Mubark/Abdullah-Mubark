@@ -6,7 +6,9 @@ paths:
   faces: "{data_root}/faces"                # faces/{dataset}/...
   plates: "{data_root}/plates"              # plates/{country}/{day|night}/clip_0001.mp4
   plates_images: "{data_root}/plates_images"  # Roboflow image datasets (YOLOv8)
-  frames: "{data_root}/frames"
+  frames: "{data_root}/frames"              # frames/{clip_id}/000000.jpg + index.csv
+  annotations: "{data_root}/annotations"    # draft labels from pre-annotation
+  models: models                            # model weights (relative to project root)
   manifest: "{data_root}/manifest.csv"
   logs: logs
 
