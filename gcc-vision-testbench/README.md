@@ -3,8 +3,8 @@
 Collects and organises test video for evaluating **face detection/recognition** and **licence-plate
 recognition** for Saudi and GCC plates (KSA, UAE, Qatar, Kuwait, Oman, Bahrain).
 
-**Status:** collection and preprocessing (frame extraction, de-duplication, pre-annotation) work
-and are tested. Evaluation and the HTML report are next (see [Roadmap](#roadmap)).
+**Status:** collection, preprocessing and evaluation work and are tested. The HTML report is
+next (see [Roadmap](#roadmap)).
 
 > Read [DATA_NOTICE.md](DATA_NOTICE.md) before collecting anything.
 
@@ -165,6 +165,88 @@ To turn it on:
 4. For faces, use `adapter: insightface` (RetinaFace family) or `adapter: yolov8` with
    YOLOv8-face weights.
 
+## Evaluation
+
+```bash
+make eval                                   # default model from config/models.yaml
+make eval ARGS="--model my_model --country ksa --limit-frames 50"
+make eval ARGS="--rescore baseline_20261015-120000"   # recompute metrics, no inference
+```
+
+### Ground truth
+
+Only frames that have ground truth are evaluated. Clips without it are listed as
+`unlabeled_clips` in `metrics.json`.
+
+| Source | Where the ground truth comes from |
+|---|---|
+| YouTube / local clips | `data/annotations/{clip_id}/gt/`, either `annotations.xml` (CVAT for images 1.1) or `labels/*.txt` + `classes.txt` (YOLO) |
+| ChokePoint | its ground-truth XML (eye positions), converted to face boxes |
+| Roboflow | YOLO labels from the export's `test` split (else `valid`), using `roboflow.class_map` |
+
+Labelling workflow for a clip:
+
+1. `make prep` with a detector enabled, which writes draft labels.
+2. Create a CVAT task from `data/frames/{clip_id}/` and upload `cvat/annotations.xml` from the
+   draft folder.
+3. Correct the boxes. On every plate box, add a text attribute named `text` with the plate as you
+   read it, e.g. `1234 ABJ` or `١٢٣٤ ا ب ح`. On face boxes, add `identity` if you want
+   recognition results.
+4. Export as "CVAT for images 1.1" and save it as `data/annotations/{clip_id}/gt/annotations.xml`.
+
+YOLO ground truth gives detection metrics only, because it has nowhere to store plate text.
+
+### Metrics
+
+- **Detection** (plates and faces):
+  - Precision and recall at `detection.score_threshold`.
+  - AP at the task IoU (0.5) and COCO mAP@[.5:.95], using greedy matching by score and COCO
+    101-point interpolation.
+  - ChokePoint face boxes are built from the eye positions (`faces.chokepoint.box_from_eyes`), so
+    they are approximate and matched at a looser IoU (`faces.chokepoint.iou`, default 0.4).
+- **Plate OCR**, in two modes:
+  - *end-to-end*: the reader runs on detected plates, so a missed plate counts as an empty read.
+  - *recognition-only*: the reader runs on the ground-truth crops, which isolates OCR from
+    detection.
+
+  Both report exact-match accuracy, character error rate (CER: total edits ÷ total reference
+  characters), mean per-plate CER, and digits-only exact match.
+- **Plate text normalisation** (`plates.normalize`; affects scoring only):
+  - Eastern Arabic and Persian digits become 0-9.
+  - NFKC folds Arabic presentation forms to base letters.
+  - Spaces, separators, tatweel, diacritics and bidi marks are removed; Latin is uppercased.
+  - Alef forms, ya/alef maqsura and ta marbuta are folded together.
+  - For KSA, Arabic letters are mapped to their official Latin pair (ا→A, ب→B, ح→J, … ى→V), so
+    reading either row of the plate counts.
+  - Digits come first, then letters, so `ABJ 1234`, `1234 ABJ` and `١٢٣٤ ا ب ح` are all equal.
+- **Face recognition** (ChokePoint):
+  - Each person's gallery template is the mean embedding over frames from the `gallery`
+    sequences.
+  - Faces in the `probe` sequences are identified against those templates. The script reports
+    rank-1 accuracy per frame and per track (mean embedding per sequence and person), EER, and
+    TAR at a 1% false-accept rate.
+  - Crops come from the ground-truth boxes, so recognition is measured separately from detection.
+  - The default gallery/probe split is only a starting point. Set it to the split you report
+    against, such as the G1/G2 groups in the ChokePoint paper.
+- **Breakdowns** of every metric by country, day/night, source and clip (`breakdown:` in
+  `config/eval.yaml`).
+
+### Output: `data/results/{run_id}/`
+
+- `run.json`: model and settings snapshot.
+- `predictions.jsonl`: per frame, the ground truth, detections and plate reads, with raw model
+  text.
+- `embeddings.npz`: face embeddings for the recognition protocol.
+- `metrics.json`: overall results plus breakdowns.
+- `failures.json` + `failures/*.jpg`: the worst missed detections (largest first), the
+  highest-scoring false positives, and plate misreads (highest CER first), each with a crop.
+  Ground-truth boxes are outlined in red, false positives in orange.
+
+Models are defined in `config/models.yaml`. Each one has up to four roles: `plate_detector`,
+`plate_reader`, `face_detector`, `face_recognizer`. A role is an adapter plus its params, and
+roles with identical settings share one loaded instance. Keep the detector confidence low there
+(e.g. 0.05), because AP needs the low-scoring detections too.
+
 ## Data layout
 ## Data layout
 
@@ -177,6 +259,8 @@ data/
   plates_images/{country}/{workspace}__{project}__v{N}/   YOLOv8 export
   frames/{clip_id}/          extracted frames + index.csv (+ _duplicates/)
   annotations/{clip_id}/     draft labels: yolo/, cvat/annotations.xml, predictions.jsonl
+  annotations/{clip_id}/gt/  corrected ground truth (CVAT XML or YOLO) used by evaluation
+  results/{run_id}/          evaluation runs
   manifest.csv
 ```
 
@@ -207,7 +291,7 @@ Give each item a stable `source_key` so re-runs skip it.
 
 ## Plugging in a model
 
-Pre-annotation (and later evaluation) uses one small interface in `src/gccvt/adapters/base.py`.
+Pre-annotation and evaluation use one small interface in `src/gccvt/adapters/base.py`.
 Frames are numpy arrays, HxWx3 uint8, in **BGR** order (OpenCV convention).
 
 ```python
@@ -223,7 +307,7 @@ class MyPlateModel(BaseAdapter):
     def detect(self, frame) -> list[Box]:         # Box(x1, y1, x2, y2, score, label, meta)
         return [Box(x1, y1, x2, y2, score, "plate") for ...]
 
-    def read_plate(self, crop) -> PlateRead:      # used by evaluation
+    def read_plate(self, crop) -> PlateRead:      # plate text, raw (normalised only for scoring)
         return PlateRead(text="أ ب ج 1234", score=0.9)
 
     def embed_face(self, crop):                   # optional, for face recognition
@@ -242,7 +326,6 @@ To use it, reference it in config as `adapter: "mypackage.my_module:MyPlateModel
 
 - [x] Collection: ChokePoint, Roboflow, YouTube, local footage, manifest
 - [x] Prep: frame extraction, perceptual-hash de-duplication, YOLO/CVAT pre-annotation
-- [ ] `scripts/eval/`: adapter runner; face P/R/mAP and ChokePoint recognition accuracy; plate mAP,
-      exact match and CER with Arabic/Latin normalisation (٠-٩ → 0-9); breakdowns by country,
-      day/night and clip
+- [x] Eval: adapter runner; face/plate P/R/AP/mAP; plate exact match, CER and digit accuracy with
+      Arabic/Latin normalisation; ChokePoint rank-1/EER; breakdowns; worst-failure crops
 - [ ] HTML report with tables, charts and worst-failure examples

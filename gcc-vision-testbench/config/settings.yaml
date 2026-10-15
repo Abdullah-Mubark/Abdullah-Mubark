@@ -9,6 +9,7 @@ paths:
   frames: "{data_root}/frames"              # frames/{clip_id}/000000.jpg + index.csv
   annotations: "{data_root}/annotations"    # draft labels from pre-annotation
   models: models                            # model weights (relative to project root)
+  results: "{data_root}/results"            # results/{run_id}/: predictions, metrics, failures
   manifest: "{data_root}/manifest.csv"
   logs: logs
 

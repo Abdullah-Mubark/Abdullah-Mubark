@@ -1,0 +1,22 @@
+# Models for evaluation. Pick one with: make eval ARGS="--model baseline"
+# Each role takes an adapter (registered name or "package.module:Class") and params for load().
+# Roles: plate_detector, plate_reader, face_detector, face_recognizer. Omit roles you don't have.
+# Identical adapter+params in two roles share one loaded instance.
+# Use a low detection threshold here: AP needs low-scoring detections too.
+
+default: baseline
+
+models:
+  baseline:
+    plate_detector:
+      adapter: yolov8
+      params: {weights: models/plate_yolov8.pt, conf: 0.05}
+    # plate_reader:
+    #   adapter: "my_ocr.adapter:MyPlateReader"
+    #   params: {weights: models/plate_ocr.onnx}
+    face_detector:
+      adapter: insightface
+      params: {model_pack: buffalo_l, conf: 0.1, recognition: true}
+    face_recognizer:
+      adapter: insightface
+      params: {model_pack: buffalo_l, conf: 0.1, recognition: true}

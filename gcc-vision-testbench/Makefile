@@ -17,6 +17,7 @@ help:
 	@echo "make prep             extract frames, dedupe, pre-annotate (if detectors enabled)"
 	@echo "make extract / dedupe / preannotate   run one prep step"
 	@echo "make install-models   optional detector dependencies (ultralytics, insightface)"
+	@echo "make eval             run the default model (config/models.yaml) on labelled clips"
 	@echo "make test             run unit tests"
 	@echo "Pass extra flags with ARGS, e.g. make collect-youtube ARGS='--dry-run --country ksa'"
 
@@ -59,8 +60,11 @@ dedupe:
 preannotate:
 	$(PY) scripts/prep/preannotate.py $(ARGS)
 
-eval report:
-	@echo "'make $@' is not implemented yet (see README roadmap)." >&2
+eval:
+	$(PY) scripts/eval/run_eval.py $(ARGS)
+
+report:
+	@echo "'make report' is not implemented yet (see README roadmap)." >&2
 	@exit 1
 
 test:

@@ -96,7 +96,8 @@ def annotate_clip(settings: Settings, row: dict, detectors: list[tuple[dict, Bas
                 boxes: list[Box] = []
                 for det_cfg, adapter in detectors:
                     for b in adapter.detect(frame):
-                        b = Box(b.x1, b.y1, b.x2, b.y2, b.score, det_cfg["label"], b.meta).clipped(w, h)
+                        b = Box(float(b.x1), float(b.y1), float(b.x2), float(b.y2), float(b.score),
+                                det_cfg["label"], b.meta).clipped(w, h)
                         if b is not None:
                             boxes.append(b)
                 n_boxes += len(boxes)

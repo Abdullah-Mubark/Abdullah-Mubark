@@ -1,0 +1,48 @@
+# Evaluation settings. Models are defined in config/models.yaml.
+
+detection:
+  iou: {plate: 0.5, face: 0.5}   # IoU for a correct detection
+  score_threshold: 0.5           # for precision / recall / failure lists (AP uses all scores)
+  map_iou: [0.5, 0.95, 0.05]     # COCO-style mAP range
+
+plates:
+  ocr_on: [pred, gt]       # pred: read crops of detected plates (end-to-end)
+                           # gt:   read crops of ground-truth plates (recognition only)
+  min_det_score: 0.3       # read plates only for detections at/above this score
+  normalize:
+    ksa_arabic_to_latin: true   # KSA: Arabic letters -> official Latin pair before comparing
+    canonical_order: true       # digits first, then letters ("ABJ 1234" == "1234 ABJ")
+    fold: null                  # null = default letter folding (alef forms, ya/alef maqsura, ta marbuta)
+
+faces:
+  chokepoint:
+    # ChokePoint ground truth has eye positions only; face boxes are derived from them:
+    # width/height as multiples of the inter-eye distance, eye line at this fraction of the height.
+    box_from_eyes: {width: 2.0, height: 2.4, eye_line: 0.4}
+    iou: 0.4                   # looser than faces.iou because the GT boxes are approximate
+    recognition:
+      enabled: true
+      # Gallery: templates (mean embedding per person) from these sequences.
+      # Probes: every GT face in these sequences, scored by rank-1 identification.
+      # These defaults are a starting point - set them to the split you report against
+      # (e.g. the G1/G2 groups from the ChokePoint paper).
+      gallery: ["P1E_S1_C1"]
+      probe: ["P1E_S2_C*", "P1E_S3_C*", "P1E_S4_C*", "P1L_*", "P2E_*", "P2L_*"]
+      gallery_frames_per_identity: 10
+      probe_frames_per_track: 20     # cap per (sequence, person)
+      crop_margin: 0.2               # enlarge GT box by this fraction before embedding
+
+gt:
+  # CVAT attribute names on boxes in data/annotations/{clip_id}/gt/annotations.xml
+  text_attribute: text          # plate text, e.g. "1234 ABJ" or "١٢٣٤ ا ب ح"
+  identity_attribute: identity  # person id for face boxes
+
+roboflow:
+  splits: [test, valid]         # first split that exists is used
+  class_map: {"*": plate}       # dataset class name -> label ("*" = any other); "" drops a class
+
+breakdown: [country, condition, source, clip_id]
+
+failures:
+  per_type: 25                  # worst examples kept per failure type (with crops)
+  context: 0.6                  # crop margin around the box, as a fraction of its size

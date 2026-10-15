@@ -106,7 +106,7 @@ class FakePlate(BaseAdapter):
 
     def detect(self, frame):
         h, w = frame.shape[:2]
-        return [Box(10, 20, 110, 60, 0.9, "whatever"),
+        return [Box(np.int64(10), np.int64(20), 110, 60, np.float32(0.9), "whatever"),  # numpy scalars are fine
                 Box(w - 20, h - 10, w + 50, h + 50, 0.5, "x"),     # partly outside -> clipped
                 Box(w + 5, h + 5, w + 50, h + 50, 0.4, "x")]       # fully outside -> dropped
 
