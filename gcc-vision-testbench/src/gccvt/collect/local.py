@@ -15,7 +15,7 @@ from typing import Any
 from ..cli import base_parser, init
 from ..config import Settings
 from ..errors import ConfigError, GccvtError
-from ..manifest import Manifest, next_clip_path, now_iso
+from ..manifest import Manifest, now_iso
 from ..media import probe, sha256_file, transcode, write_json
 
 MODES = ("copy", "link", "transcode")
@@ -93,7 +93,9 @@ def import_file(f: Path, src: dict, settings: Settings, manifest: Manifest, log,
         log.info("Already imported: %s -> %s", f, row["path"])
         return "skipped"
     ext = ".mp4" if src["mode"] == "transcode" else f.suffix.lower()
-    dst, _ = next_clip_path(folder, settings.section("clips").get("name_pattern", "clip_{n:04d}"), ext)
+    id_prefix = f"plate-{country}-{condition}" if task == "plate" else f"face-{src['dataset']}"
+    dst = manifest.clip_path(folder, settings.section("clips").get("name_pattern", "clip_{n:04d}"), ext,
+                             id_prefix, key)
     if dry_run:
         print(f"{f} -> {settings.rel(dst)} ({src['mode']})")
         return "dry"
@@ -108,8 +110,7 @@ def import_file(f: Path, src: dict, settings: Settings, manifest: Manifest, log,
         "height": info.get("height"), "fps": info.get("fps"), "notes": src.get("notes", ""),
         "imported_at": now_iso(), "consent_ack": True,
     })
-    clip_id = (f"plate-{country}-{condition}-{dst.stem}" if task == "plate"
-               else f"face-{src['dataset']}-{dst.stem}")
+    clip_id = f"{id_prefix}-{dst.stem}"
     manifest.upsert({
         "clip_id": clip_id, "task": task, "source": "local", "dataset": src.get("dataset", "local"),
         "country": country, "condition": condition, "path": settings.rel(dst),

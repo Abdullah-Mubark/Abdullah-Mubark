@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 FIELDS = [
     "clip_id", "task", "source", "dataset", "country", "condition", "path",
@@ -40,6 +40,21 @@ class Manifest:
                 return row
         return None
 
+    def clip_path(self, folder: Path, pattern: str, ext: str, id_prefix: str, source_key: str) -> Path:
+        """Where a new clip goes. clip_id is f"{id_prefix}-{file stem}".
+
+        A source the manifest already lists keeps its file name, so clip ids (and the labels and
+        results keyed by them) stay the same when manifest.csv is copied to another machine and the
+        clips are collected again there. Otherwise the next number that is free both in the folder
+        and among the manifest's clip ids is used, so a new clip never takes a listed one's id.
+        """
+        lead = id_prefix + "-"
+        row = self.find_by_source_key(source_key)
+        if row and row["clip_id"].startswith(lead):
+            return folder / (row["clip_id"][len(lead):] + ext)
+        reserved = [cid[len(lead):] for cid in self.rows if cid.startswith(lead)]
+        return next_clip_path(folder, pattern, ext, reserved)[0]
+
     def upsert(self, row: dict[str, Any]) -> None:
         unknown = set(row) - set(FIELDS)
         if unknown:
@@ -69,10 +84,14 @@ def _fmt(v: Any) -> str:
     return str(v)
 
 
-def next_clip_path(folder: Path, pattern: str, ext: str) -> tuple[Path, int]:
-    """Next free clip_NNNN path in folder (numbering continues after the highest existing)."""
+def next_clip_path(folder: Path, pattern: str, ext: str, reserved: Iterable[str] = ()) -> tuple[Path, int]:
+    """Next free clip_NNNN path in folder (numbering continues after the highest existing).
+
+    reserved: file stems that count as taken even if not on disk (clips listed in the manifest).
+    """
     prefix = pattern.split("{", 1)[0]
-    rx = re.compile(rf"^{re.escape(prefix)}(\d+)\.")
-    nums = [int(m.group(1)) for p in folder.glob(f"{prefix}*") if (m := rx.match(p.name))] if folder.is_dir() else []
+    rx = re.compile(rf"^{re.escape(prefix)}(\d+)(\.|$)")
+    names = [p.name for p in folder.glob(f"{prefix}*")] if folder.is_dir() else []
+    nums = [int(m.group(1)) for name in [*names, *reserved] if (m := rx.match(name))]
     n = max(nums, default=0) + 1
     return folder / f"{pattern.format(n=n)}{ext}", n

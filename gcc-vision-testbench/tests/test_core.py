@@ -56,6 +56,19 @@ def test_next_clip_path(tmp_path):
     (tmp_path / "clip_0001.mp4").touch()
     (tmp_path / "clip_0007.json").touch()
     assert next_clip_path(tmp_path, "clip_{n:04d}", ".mp4")[0].name == "clip_0008.mp4"
+    assert next_clip_path(tmp_path, "clip_{n:04d}", ".mp4", ["clip_0012"])[0].name == "clip_0013.mp4"
+
+
+def test_manifest_clip_path_keeps_listed_ids(tmp_path):
+    m = Manifest(tmp_path / "manifest.csv")
+    m.upsert({"clip_id": "plate-ksa-day-clip_0003", "source_key": "youtube:a:0-60",
+              "path": "/other/pc/data/plates/ksa/day/clip_0003.mp4"})
+    m.upsert({"clip_id": "plate-uae-day-clip_0009", "source_key": "youtube:b:0-60"})
+    folder = tmp_path / "plates/ksa/day"                    # empty: clips not collected here yet
+    args = (folder, "clip_{n:04d}", ".mp4", "plate-ksa-day")
+    assert m.clip_path(*args, "youtube:a:0-60") == folder / "clip_0003.mp4"   # listed: same id
+    assert m.clip_path(*args, "youtube:new:0-60").name == "clip_0004.mp4"     # new: skips listed ids
+    assert m.clip_path(*args, "youtube:b:0-60").name == "clip_0004.mp4"       # other folder's row
 
 
 def test_download_resume_and_skip(server, tmp_path):
