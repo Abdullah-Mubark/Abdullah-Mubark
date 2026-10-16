@@ -16,6 +16,9 @@ models/
 *.engine
 *.safetensors
 
+# Transfer bundle from make pack (holds your labels and results)
+gccvt-transfer*.tgz*
+
 # Download leftovers (yt-dlp, interrupted transcodes)
 *.part
 *.ytdl

@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 ARGS ?=
 
 .PHONY: help venv install collect collect-faces collect-roboflow collect-youtube collect-local \
-        manifest prep extract dedupe preannotate face-clips install-models eval report compare test clean-data clean-logs
+        manifest fetch pack prep extract dedupe preannotate face-clips install-models eval report compare test clean-data clean-logs
 
 help:
 	@echo "make install          create .venv and install requirements"
@@ -14,6 +14,8 @@ help:
 	@echo "make collect-youtube  YouTube segments -> MP4 clips (4K by default)"
 	@echo "make collect-local    your own footage (config/local_sources.yaml)"
 	@echo "make manifest         summary of data/manifest.csv"
+	@echo "make fetch            new machine: all data in one go (unpacks gccvt-transfer.tgz first if present)"
+	@echo "make pack             gccvt-transfer.tgz: manifest, gt labels, results (no videos) for make fetch"
 	@echo "make prep             extract frames, dedupe, pre-annotate (if detectors enabled)"
 	@echo "make extract / dedupe / preannotate   run one prep step"
 	@echo "make face-clips       encode image-sequence clips (ChokePoint) as MP4 in data/faces/clips/"
@@ -52,6 +54,12 @@ collect-local:
 
 manifest:
 	$(PY) scripts/collect/manifest_summary.py
+
+fetch:
+	$(PY) scripts/fetch_data.py $(ARGS)
+
+pack:
+	$(PY) scripts/fetch_data.py --pack $(ARGS)
 
 prep: extract dedupe preannotate
 

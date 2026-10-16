@@ -5,8 +5,9 @@ zenodo:
 
 files:
   # fnmatch patterns on Zenodo file names. Default: everything.
-  # The full dataset is large; e.g. ["P1E*", "groundtruth*"] for portal 1 entering only.
-  include: ["*"]
+  # Portal 1, people entering (~1.6 GB, 12 camera sequences) + ground truth. The full dataset is
+  # ~12 GB: use ["*"] for everything, or add e.g. "P2E*" for portal 2.
+  include: ["P1E*", "groundtruth*"]
   exclude: []
 
 extract: true                      # unpack archives into data/faces/chokepoint/

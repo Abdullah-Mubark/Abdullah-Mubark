@@ -49,7 +49,8 @@ Files are fetched one at a time with HTTP Range resume, checked against Zenodo's
 and extracted. Each session archive (`P1E_S1.tar.xz`) holds one archive per camera, which is
 unpacked too. Each camera sequence (a folder of JPEG frames, e.g. `P1E_S1_C1/`) becomes one row in
 the manifest, linked to its ground-truth XML. The portal archives (`P1E.tar.xz`) add 96×96 face
-crops in per-person subfolders (`P1E_S1_C1/0006/`); they are kept but not registered as clips. The full dataset is large, so restrict `files.include` if disk is tight.
+crops in per-person subfolders (`P1E_S1_C1/0006/`); they are kept but not registered as clips. By default only portal 1, people entering (`P1E*`, ~1.6 GB) and the ground truth are fetched; the
+full dataset is ~12 GB, so widen `files.include` in `config/chokepoint.yaml` only if you need it.
 `delete_archives_after_extract: true` saves space, and the archives won't be downloaded again.
 
 ### Roboflow Universe
@@ -386,23 +387,31 @@ make clean-data ARGS="all --yes"                        # everything except your
 
 ## Moving to another machine
 
-Videos and images don't need copying: the configs pin every YouTube segment and Roboflow version,
-so the other machine downloads the same data. Copy only what can't be downloaded again:
+Videos and images don't need copying: the configs pin every YouTube segment, the ChokePoint
+subset and every Roboflow version, so the other machine downloads the same data.
 
 ```bash
-# on this machine, from gcc-vision-testbench/
-tar czf gccvt-transfer.tgz --exclude='*.mp4' --ignore-failed-read \
-    data/manifest.csv data/annotations/*/gt data/results
-# on the other machine, after git clone + make install + ROBOFLOW_API_KEY in .env
-tar xzf gccvt-transfer.tgz && make collect && make prep
-make report ARGS="--run <RUN_ID>"        # re-renders the annotated clips from local videos
+# this machine: pack what can't be downloaded again (manifest, gt labels, results; no videos)
+make pack                      # -> gccvt-transfer.tgz, usually a few MB
+
+# other machine
+git clone https://github.com/Abdullah-Mubark/Abdullah-Mubark.git
+cd Abdullah-Mubark/gcc-vision-testbench && make install
+# copy gccvt-transfer.tgz here; add ROBOFLOW_API_KEY to .env (optional)
+make fetch
 ```
 
-Copy `manifest.csv` **before** collecting. A segment or local file that the manifest already
-lists gets the same `clip_id` again, whatever order the downloads finish in, so your labels and
-results still line up with the right clips. New sources get numbers the manifest hasn't used.
-Re-encoded frames can differ by a few bytes between ffmpeg versions; the metrics are still
-comparable, but a run's data fingerprint will show the difference.
+`make fetch` unpacks `gccvt-transfer.tgz` first (then renames it `*.unpacked`, so re-runs don't
+overwrite the manifest), then collects the YouTube clips, ChokePoint and the Roboflow datasets
+(skipped without an API key) and encodes the face MP4s. A failed step doesn't stop the others;
+the summary lists what to re-run, and a re-run skips everything already done. Without a bundle it
+simply fetches everything fresh. Then `make prep` and `make report ARGS="--run <RUN_ID>"`
+re-render the annotated clips from the local videos.
+
+The manifest is unpacked **before** collecting. A segment or local file that it already lists
+gets the same `clip_id` again, whatever order the downloads finish in, so your labels and results
+still line up with the right clips. Re-encoded frames can differ by a few bytes between ffmpeg
+versions; the metrics are still comparable, but a run's data fingerprint will show the difference.
 
 **Faster:** if both machines are on the same network or you have a USB drive, copying the
 finished clips is minutes instead of hours of downloading and encoding, and gives byte-identical
