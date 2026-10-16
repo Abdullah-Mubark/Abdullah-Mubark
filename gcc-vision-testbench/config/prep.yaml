@@ -1,0 +1,49 @@
+# Preprocessing: frame extraction, de-duplication, pre-annotation.
+
+extract:
+  fps: 2                  # frames per second to keep (capped at the source fps)
+  image_format: jpg       # jpg | png
+  jpeg_quality: 2         # ffmpeg -qscale:v, 2 (best) .. 31
+  sequences: link         # image-sequence clips (ChokePoint): link (hard link, no extra space) | copy
+  tasks: [plate, face]    # which manifest tasks to extract
+  workers: 2              # parallel ffmpeg processes
+
+dedupe:
+  method: phash           # phash | dhash
+  hash_size: 8            # 8 -> 64-bit hash
+  threshold: 6            # max Hamming distance counted as a near-duplicate
+  window: 3               # compare against the last N kept frames
+  action: move            # move -> {clip}/_duplicates/ (reversible) | delete | mark (index.csv only)
+  # Per-source / per-task overrides, merged over the settings above (source wins over task).
+  # Fixed surveillance cameras (ChokePoint) have a static background and small faces: a global
+  # perceptual hash barely changes when a person walks through, so dedupe would drop real frames.
+  overrides:
+    source:
+      chokepoint: {enabled: false}
+    task: {}
+
+preannotate:
+  formats: [yolo, cvat]   # yolo: labels/*.txt + classes.txt | cvat: CVAT for images 1.1 XML
+  classes: [plate, face]  # class ids in YOLO output follow this order
+  detectors:
+    # Each detector runs on clips whose task is in `tasks`.
+    # adapter: a registered name (yolov8, insightface) or "package.module:ClassName".
+    # Everything under `params` is passed to the adapter's load().
+    plate:
+      enabled: false
+      adapter: yolov8
+      tasks: [plate]
+      label: plate
+      params:
+        weights: models/plate_yolov8.pt   # your plate model (no official GCC plate weights exist)
+        conf: 0.25
+        keep_classes: null                # model class ids to keep; null = all
+    face:
+      enabled: false
+      adapter: insightface                # RetinaFace-family; or yolov8 with face weights
+      tasks: [face]
+      label: face
+      params:
+        model_pack: buffalo_l
+        conf: 0.5
+        det_size: 640

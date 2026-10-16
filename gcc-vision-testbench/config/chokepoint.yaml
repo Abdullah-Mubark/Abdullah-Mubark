@@ -1,0 +1,15 @@
+# ChokePoint face video dataset (Zenodo).
+zenodo:
+  api_url: "https://zenodo.org/api/records/{record_id}"
+  record_id: 815657
+
+files:
+  # fnmatch patterns on Zenodo file names. Default: everything.
+  # The full dataset is large; e.g. ["P1E*", "groundtruth*"] for portal 1 entering only.
+  include: ["*"]
+  exclude: []
+
+extract: true                      # unpack archives into data/faces/chokepoint/
+delete_archives_after_extract: false
+fps: 30                            # ChokePoint frame rate (frames ship as JPEG sequences)
+license: "Original ChokePoint licence - see the Zenodo record page"

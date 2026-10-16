@@ -1,0 +1,29 @@
+# YouTube clips for plate testing. INTERNAL TESTING ONLY - see DATA_NOTICE.md.
+#
+# Per source: url, country, condition (day|night), start, end
+# Timestamps: "HH:MM:SS", "MM:SS", or seconds (decimals allowed).
+# Several segments from one video: use `segments:` instead of start/end.
+defaults:
+  download_mode: section     # section: fetch only the segment | full: fetch whole video (cached, reused)
+  fallback_to_full: true     # if a section download fails, try the full video
+  format: "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b"
+  attempts: 3
+  cookies_from_browser: null # e.g. "chrome" if YouTube asks you to sign in
+  rate_limit: null           # e.g. "5M"
+
+sources:
+  # Placeholders - replace with real videos.
+  - url: "https://www.youtube.com/watch?v=VIDEO_ID_1"
+    country: ksa
+    condition: day
+    start: "00:01:30"
+    end: "00:02:15"
+    enabled: false
+    notes: "Riyadh dashcam, highway"
+
+  - url: "https://www.youtube.com/watch?v=VIDEO_ID_2"
+    country: uae
+    enabled: false
+    segments:
+      - {start: "10:00", end: "10:45", condition: night}
+      - {start: 1520, end: 1580, condition: night}

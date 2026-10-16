@@ -1,0 +1,48 @@
+# Global settings. Paths are relative to the project root unless absolute.
+# "{data_root}" is substituted; GCCVT_DATA_ROOT in .env overrides data_root.
+paths:
+  data_root: data
+  raw: "{data_root}/raw"                    # downloads as received (archives, full videos)
+  faces: "{data_root}/faces"                # faces/{dataset}/...
+  plates: "{data_root}/plates"              # plates/{country}/{day|night}/clip_0001.mp4
+  plates_images: "{data_root}/plates_images"  # Roboflow image datasets (YOLOv8)
+  frames: "{data_root}/frames"              # frames/{clip_id}/000000.jpg + index.csv
+  annotations: "{data_root}/annotations"    # draft labels from pre-annotation
+  models: models                            # model weights (relative to project root)
+  results: "{data_root}/results"            # results/{run_id}/: predictions, metrics, failures
+  manifest: "{data_root}/manifest.csv"
+  logs: logs
+
+taxonomy:
+  countries: [ksa, uae, qatar, kuwait, oman, bahrain]
+  conditions: [day, night]
+  # Accepted spellings in configs / folder names -> canonical country code
+  country_aliases:
+    sa: ksa
+    saudi: ksa
+    saudi_arabia: ksa
+    ae: uae
+    emirates: uae
+    qa: qatar
+    kw: kuwait
+    om: oman
+    bh: bahrain
+
+clips:
+  name_pattern: "clip_{n:04d}"
+
+network:
+  timeout_s: 60
+  retries: 5            # attempts per request / download
+  backoff_s: 2          # first retry delay, doubles each time
+  backoff_max_s: 60
+  chunk_mib: 4
+  user_agent: "gcc-vision-testbench/0.1"
+
+video:                  # output encoding for YouTube clips (and local "transcode" mode)
+  target_height: 1080
+  allow_upscale: false  # if false, sources below 1080p keep their resolution (logged)
+  codec: libx264
+  crf: 18
+  preset: medium
+  keep_audio: false
