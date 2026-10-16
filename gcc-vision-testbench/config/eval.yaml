@@ -30,7 +30,8 @@ faces:
       probe: ["P1E_S2_C*", "P1E_S3_C*", "P1E_S4_C*", "P1L_*", "P2E_*", "P2L_*"]
       gallery_frames_per_identity: 10
       probe_frames_per_track: 20     # cap per (sequence, person)
-      crop_margin: 0.2               # enlarge GT box by this fraction before embedding
+      crop_margin: 1.0               # enlarge GT box by this fraction (each side) before embedding. 0.2 was
+                                     # too tight: 46% of ChokePoint crops failed to embed; 1.0 -> 0%
 
 gt:
   # CVAT attribute names on boxes in data/annotations/{clip_id}/gt/annotations.xml

@@ -118,7 +118,7 @@ def infer(settings: Settings, rows: list[dict], gts: dict[str, dict], models: di
     min_read = float(plates_cfg.get("min_det_score", 0.3))
     choke = (cfg.get("faces") or {}).get("chokepoint") or {}
     rec_cfg = choke.get("recognition") or {}
-    margin = float(rec_cfg.get("crop_margin", 0.2))
+    margin = float(rec_cfg.get("crop_margin", 1.0))
     emb_vecs: list[np.ndarray] = []
     emb_meta: list[dict] = []
     n_frames, t0 = 0, time.monotonic()
