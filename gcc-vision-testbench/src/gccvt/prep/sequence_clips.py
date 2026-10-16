@@ -13,7 +13,7 @@ from pathlib import Path
 from ..cli import base_parser, init
 from ..config import Settings
 from ..errors import GccvtError
-from ..media import require_tool, run
+from ..media import encoder_args, require_tool, run
 from .common import IMAGE_EXTS, add_filter_args, clip_source, select_clips
 
 
@@ -33,10 +33,7 @@ def encode_sequence(images: list[Path], dst: Path, fps: float, video_cfg: dict) 
     try:
         run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0",
              "-i", str(listing), "-fps_mode", "cfr", "-r", f"{fps:g}", "-frames:v", str(len(images)),
-             "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-             "-c:v", str(video_cfg.get("codec", "libx264")), "-crf", str(video_cfg.get("crf", 18)),
-             "-preset", str(video_cfg.get("preset", "medium")), "-pix_fmt", "yuv420p",
-             "-movflags", "+faststart", "-an", str(tmp)],
+             "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", *encoder_args(video_cfg), "-an", str(tmp)],
             what=f"ffmpeg encode {dst.name}")
         tmp.replace(dst)
     finally:

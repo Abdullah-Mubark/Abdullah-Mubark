@@ -98,6 +98,25 @@ def _float(v: Any) -> float | None:
         return None
 
 
+CODEC_NAMES = {"libx264": "h264", "libx265": "hevc"}   # encoder -> codec name ffprobe reports
+
+
+def encoder_args(video_cfg: dict[str, Any]) -> list[str]:
+    """ffmpeg output options for the configured codec (video: section of settings.yaml)."""
+    codec = str(video_cfg.get("codec", "libx264"))
+    args = ["-c:v", codec, "-crf", str(video_cfg.get("crf", 18)),
+            "-preset", str(video_cfg.get("preset", "medium")), "-pix_fmt", "yuv420p"]
+    if codec == "libx265":
+        args += ["-tag:v", "hvc1", "-x265-params", "log-level=error"]  # hvc1: plays in QuickTime/Safari too
+    return args + ["-movflags", "+faststart"]
+
+
+def fps_cap(src_fps: float | None, video_cfg: dict[str, Any]) -> float | None:
+    """video.max_fps if the source is faster than that, else None (keep the source rate)."""
+    cap = video_cfg.get("max_fps")
+    return float(cap) if cap and src_fps and src_fps > float(cap) + 0.01 else None
+
+
 def transcode(
     src: Path,
     dst: Path,
@@ -106,7 +125,8 @@ def transcode(
     start: float | None = None,
     duration: float | None = None,
 ) -> dict[str, Any]:
-    """Re-encode src -> dst (H.264 mp4), optionally trimming, scaled to the target height.
+    """Re-encode src -> dst (mp4, video.codec), optionally trimming, scaled to the target height and
+    capped at video.max_fps. dst may be src itself (re-encode in place).
 
     Writes to a temp file first so an interrupted run never leaves a half-written clip.
     Returns probe() of the result.
@@ -120,6 +140,8 @@ def transcode(
         vf = "scale=trunc(iw/2)*2:trunc(ih/2)*2"
     else:
         vf = f"scale=-2:{target}"
+    if cap := fps_cap(src_info.get("fps"), video_cfg):
+        vf += f",fps={cap:g}"
 
     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
     if start:
@@ -128,12 +150,7 @@ def transcode(
     if duration:
         cmd += ["-t", f"{duration:.3f}"]
     cmd += [
-        "-vf", vf,
-        "-c:v", str(video_cfg.get("codec", "libx264")),
-        "-crf", str(video_cfg.get("crf", 18)),
-        "-preset", str(video_cfg.get("preset", "medium")),
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
+        "-vf", vf, *encoder_args(video_cfg),
     ]
     cmd += ["-c:a", "aac", "-b:a", "128k"] if video_cfg.get("keep_audio") else ["-an"]
     dst.parent.mkdir(parents=True, exist_ok=True)

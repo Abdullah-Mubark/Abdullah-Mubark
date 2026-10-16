@@ -181,9 +181,9 @@ def infer(settings: Settings, rows: list[dict], gts: dict[str, dict], models: di
                 n_frames += 1
                 if n_frames % 200 == 0:
                     log.info("%d frames (%.1f fps)", n_frames, n_frames / (time.monotonic() - t0))
-    ok_vecs = [v for v, m in zip(emb_vecs, emb_meta) if m["ok"]]
+    # emb_vecs holds only successful embeddings, in the order of the meta entries with ok=True
     np.savez_compressed(run_dir / "embeddings.npz",
-                        vectors=np.stack(ok_vecs) if ok_vecs else np.zeros((0, 0), np.float32),
+                        vectors=np.stack(emb_vecs) if emb_vecs else np.zeros((0, 0), np.float32),
                         meta=np.array(json.dumps(emb_meta)))
     log.info("Inference done: %d frames in %.0fs", n_frames, time.monotonic() - t0)
 
