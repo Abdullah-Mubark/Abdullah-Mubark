@@ -210,6 +210,24 @@ def test_run_eval_end_to_end(cfg_dir, eval_setup):
     assert m2["detection"]["plate"]["overall"]["ap"] == pd["ap"]
 
 
+def test_run_eval_some_embeddings_fail(cfg_dir, eval_setup, monkeypatch):
+    """Failed face embeddings must not shift the remaining vectors onto the wrong faces."""
+    calls = {"n": 0}
+    real = ColorEmbed.embed_face
+
+    def flaky(self, crop):
+        calls["n"] += 1
+        if calls["n"] == 1:              # the old code shifted every later vector after a failure
+            raise ValueError("no face found in crop")
+        return real(self, crop)
+
+    monkeypatch.setattr(ColorEmbed, "embed_face", flaky)
+    assert runner.main(["--config-dir", str(cfg_dir), "--run-id", "flaky"]) == 0
+    fr = json.loads((eval_setup / "results/flaky/metrics.json").read_text())["face_recognition"]
+    assert fr["embed_failures"] == 1 and calls["n"] > 2
+    assert fr["frame_level"]["rank1"] == 1.0
+
+
 def test_run_eval_unknown_model(cfg_dir, eval_setup):
     from gccvt.errors import ConfigError
     with pytest.raises(ConfigError, match="not in config/models.yaml"):
