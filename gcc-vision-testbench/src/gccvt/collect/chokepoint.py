@@ -2,11 +2,16 @@
 
 Resumes partial downloads, verifies Zenodo's md5 checksums, skips files already verified,
 extracts archives and registers each camera sequence in manifest.csv.
+
+Layout: each session archive (P1E_S1.tar.xz) holds one archive per camera (P1E_S1_C1.tar.xz) with
+the full frames; those are unpacked too. The portal archives (P1E.tar.xz) hold 96x96 face crops in
+per-person folders (P1E_S1_C1/0006/); they are kept but not registered as clips.
 """
 
 from __future__ import annotations
 
 import fnmatch
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +24,7 @@ from ..media import probe
 from ..net import HttpClient
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".pgm"}
+SEQUENCE_RX = re.compile(r"^P\d[EL]_S\d+_C\d+$")   # camera sequence folder, e.g. P1E_S1_C1
 
 
 def zenodo_files(record: dict[str, Any]) -> list[dict[str, Any]]:
@@ -48,12 +54,27 @@ def select_files(files: list[dict], include: list[str], exclude: list[str]) -> l
     ]
 
 
+def extract_nested(folder: Path, log) -> int:
+    """Unpack archives found inside folder (in place), then delete them; repeat until none left."""
+    count = 0
+    while todo := sorted(p for p in folder.rglob("*") if p.is_file() and archives.is_archive(p)):
+        for inner in todo:
+            log.info("Extracting %s", inner.relative_to(folder))
+            archives.extract(inner, inner.parent)
+            inner.unlink()
+            count += 1
+    return count
+
+
 def index_sequences(settings: Settings, manifest: Manifest, faces_dir: Path, cfg: dict, record_url: str) -> int:
-    """Register every folder that directly contains image frames as one clip."""
+    """Register every camera-sequence folder (full frames) as one clip; drop rows that no longer are."""
     fps = float(cfg.get("fps", 30))
     xmls = {p.stem: p for p in faces_dir.rglob("*.xml")}
     count = 0
+    seen = set()
     for d in sorted(p for p in faces_dir.rglob("*") if p.is_dir()):
+        if not (SEQUENCE_RX.match(d.name) or d.name in xmls):
+            continue  # e.g. per-person face-crop folders
         frames = sorted(p for p in d.iterdir() if p.suffix.lower() in IMAGE_EXTS)
         if not frames:
             continue
@@ -72,7 +93,10 @@ def index_sequences(settings: Settings, manifest: Manifest, faces_dir: Path, cfg
             "source_url": record_url, "source_key": f"chokepoint:{d.relative_to(faces_dir).as_posix()}",
             "license": cfg.get("license", ""), "gt_path": settings.rel(gt) if gt else "",
         })
+        seen.add(f"face-chokepoint-{d.relative_to(faces_dir).as_posix().replace('/', '__')}")
         count += 1
+    for cid in [c for c, r in manifest.rows.items() if r["source"] == "chokepoint" and c not in seen]:
+        manifest.remove(cid)
     return count
 
 
@@ -126,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
             if extract and archives.is_archive(dest):
                 log.info("Extracting %s -> %s", f["name"], faces_dir)
                 archives.extract(dest, faces_dir)
+                extract_nested(faces_dir, log)
                 marker_dir.mkdir(parents=True, exist_ok=True)
                 marker.write_text(f["checksum"] or "")
                 if cfg.get("delete_archives_after_extract"):
@@ -136,6 +161,12 @@ def main(argv: list[str] | None = None) -> int:
             failed.append(f["name"])
 
     if faces_dir.is_dir():
+        if extract:
+            try:
+                extract_nested(faces_dir, log)  # also finishes folders extracted by older versions
+            except GccvtError as e:
+                log.error("%s", e)
+                failed.append("nested archives")
         manifest = Manifest(settings.path("manifest"))
         n = index_sequences(settings, manifest, faces_dir, cfg, record_url)
         manifest.save()

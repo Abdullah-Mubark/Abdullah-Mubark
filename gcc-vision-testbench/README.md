@@ -46,8 +46,10 @@ python scripts/collect/download_chokepoint.py --only "P1E*" "groundtruth*"
 ```
 
 Files are fetched one at a time with HTTP Range resume, checked against Zenodo's md5 checksums,
-and extracted. Each camera sequence (a folder of JPEG frames) becomes one row in the manifest, linked
-to its ground-truth XML. The full dataset is large, so restrict `files.include` if disk is tight.
+and extracted. Each session archive (`P1E_S1.tar.xz`) holds one archive per camera, which is
+unpacked too. Each camera sequence (a folder of JPEG frames, e.g. `P1E_S1_C1/`) becomes one row in
+the manifest, linked to its ground-truth XML. The portal archives (`P1E.tar.xz`) add 96×96 face
+crops in per-person subfolders (`P1E_S1_C1/0006/`); they are kept but not registered as clips. The full dataset is large, so restrict `files.include` if disk is tight.
 `delete_archives_after_extract: true` saves space, and the archives won't be downloaded again.
 
 ### Roboflow Universe
@@ -99,6 +101,10 @@ sources:
 - **Encoding.** ffmpeg re-encodes each clip to H.264 MP4 at `video.target_height` (default 2160,
   i.e. 4K: a plate is about twice as many pixels wide as at 1080p). The yt-dlp `format` in
   `youtube_sources.yaml` caps the download at the same height; keep the two in step.
+  - Speed: `defaults.jobs` (default 3, or `--jobs N`) segments run at once, so one downloads while
+    another encodes. Clip numbers are still assigned in config order. `video.preset: veryfast`
+    encodes 4K about 2-3x faster than `medium` for ~25% bigger files; use `medium` or `slow`
+    if disk matters more than time.
   - With `video.allow_upscale: false`, lower-resolution sources keep their resolution, and the
     script logs a warning.
   - Audio is dropped unless `video.keep_audio: true`.
@@ -397,6 +403,15 @@ lists gets the same `clip_id` again, whatever order the downloads finish in, so 
 results still line up with the right clips. New sources get numbers the manifest hasn't used.
 Re-encoded frames can differ by a few bytes between ffmpeg versions; the metrics are still
 comparable, but a run's data fingerprint will show the difference.
+
+**Faster:** if both machines are on the same network or you have a USB drive, copying the
+finished clips is minutes instead of hours of downloading and encoding, and gives byte-identical
+data. Copy `data/plates/` and `data/faces/` along with the tarball above (YouTube clips stay
+internal: see DATA_NOTICE.md), then skip `make collect`:
+
+```bash
+rsync -a --info=progress2 data/plates data/faces data/manifest.csv OTHER_PC:gcc-vision-testbench/data/
+```
 
 ## Data layout
 

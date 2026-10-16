@@ -59,6 +59,23 @@ def test_next_clip_path(tmp_path):
     assert next_clip_path(tmp_path, "clip_{n:04d}", ".mp4", ["clip_0012"])[0].name == "clip_0013.mp4"
 
 
+def test_manifest_save_merges_concurrent_writers(tmp_path):
+    path = tmp_path / "manifest.csv"
+    seed = Manifest(path)
+    seed.upsert({"clip_id": "old", "task": "plate"})
+    seed.upsert({"clip_id": "gone", "task": "plate"})
+    seed.save()
+    a, b = Manifest(path), Manifest(path)          # e.g. collect-youtube and collect-faces at once
+    a.upsert({"clip_id": "yt-1", "task": "plate"})
+    a.save()
+    b.upsert({"clip_id": "face-1", "task": "face"})
+    b.remove("gone")
+    b.save()                                       # must not drop yt-1, which b never saw
+    a.upsert({"clip_id": "yt-2", "task": "plate"})
+    a.save()                                       # must not bring back "gone" or drop face-1
+    assert set(Manifest(path).rows) == {"old", "yt-1", "yt-2", "face-1"}
+
+
 def test_manifest_clip_path_keeps_listed_ids(tmp_path):
     m = Manifest(tmp_path / "manifest.csv")
     m.upsert({"clip_id": "plate-ksa-day-clip_0003", "source_key": "youtube:a:0-60",

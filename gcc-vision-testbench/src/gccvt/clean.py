@@ -239,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
         prune_empty(settings.path("annotations"))
     if plan.rows:
         for cid in plan.rows:
-            manifest.rows.pop(cid, None)
+            manifest.remove(cid)
         manifest.save()
     log.info("Deleted %s in %s%s", human(total), ", ".join(cats), rows_note)
     return 0

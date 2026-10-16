@@ -50,6 +50,42 @@ def test_chokepoint_end_to_end(server, cfg_dir, tmp_path):
     assert server.hits["/files/P1E_S1.tar.xz"] == hits["/files/P1E_S1.tar.xz"]  # nothing re-downloaded
 
 
+def test_chokepoint_nested_archives_and_crops(server, cfg_dir, tmp_path):
+    """Real layout: P1E_S1.tar.xz holds P1E_S1_C1.tar.xz (full frames); P1E.tar.xz holds face crops."""
+    def xz(add):
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:xz") as tf:
+            add(tf)
+        return buf.getvalue()
+
+    build = tmp_path / "build"
+    for i in range(4):
+        make_jpeg(build / "P1E_S1_C1" / f"{i:08d}.jpg")
+    make_jpeg(build / "crops" / "P1E_S1_C1" / "0006" / "00000001.jpg")
+    inner = build / "P1E_S1_C1.tar.xz"
+    inner.write_bytes(xz(lambda tf: tf.add(build / "P1E_S1_C1", arcname="P1E_S1_C1")))
+    blobs = {"P1E_S1.tar.xz": xz(lambda tf: tf.add(inner, arcname="P1E_S1_C1.tar.xz")),
+             "P1E.tar.xz": xz(lambda tf: tf.add(build / "crops" / "P1E_S1_C1", arcname="P1E_S1_C1"))}
+    files = []
+    for name, data in blobs.items():
+        server.routes[f"/files/{name}"] = data
+        files.append({"key": name, "size": len(data), "checksum": "md5:" + hashlib.md5(data).hexdigest(),
+                      "links": {"self": f"{server.url}/files/{name}"}})
+    server.routes["/api/records/815657"] = {"files": files}
+    edit_yaml(cfg_dir / "chokepoint.yaml", lambda c: c["zenodo"].update(api_url=server.url + "/api/records/{record_id}"))
+    m = _manifest(tmp_path)
+    m.upsert({"clip_id": "face-chokepoint-P1E_S1_C1__0006", "source": "chokepoint", "task": "face"})  # old crop row
+    m.save()
+
+    assert chokepoint.main(["--config-dir", str(cfg_dir)]) == 0
+    faces = tmp_path / "data/faces/chokepoint"
+    assert len(list((faces / "P1E_S1_C1").glob("*.jpg"))) == 4                 # inner archive unpacked
+    assert (faces / "P1E_S1_C1/0006/00000001.jpg").is_file()                   # crops kept
+    assert not list(faces.glob("*.tar.xz"))                                    # inner archive removed
+    rows = {cid: r for cid, r in _manifest(tmp_path).rows.items() if r["source"] == "chokepoint"}
+    assert list(rows) == ["face-chokepoint-P1E_S1_C1"] and rows["face-chokepoint-P1E_S1_C1"]["frame_count"] == "4"
+
+
 # ---------------------------------------------------------------- Roboflow
 def test_roboflow_end_to_end(server, cfg_dir, tmp_path, monkeypatch):
     zbuf = io.BytesIO()
@@ -162,11 +198,13 @@ def test_youtube_ids_survive_copied_manifest(cfg_dir, tmp_path, monkeypatch):
     edit_yaml(cfg_dir / "settings.yaml", lambda c: c["video"].update(preset="ultrafast"))
     seg = lambda start: {"url": "https://youtu.be/abcdefghijk", "country": "ksa", "condition": "day",  # noqa: E731
                          "start": start, "end": start + 1}
-    edit_yaml(cfg_dir / "youtube_sources.yaml", lambda c: (c["defaults"].update(fallback_to_full=False),
+    edit_yaml(cfg_dir / "youtube_sources.yaml", lambda c: (c["defaults"].update(fallback_to_full=False, jobs=3),
                                                          c.update(sources=[seg(10), seg(20), seg(30)])))
     assert youtube.main(["--config-dir", str(cfg_dir)]) == 0
     ids = {r["source_key"]: cid for cid, r in _manifest(tmp_path).rows.items()}
-    assert sorted(ids.values()) == [f"plate-ksa-day-clip_000{n}" for n in (1, 2, 3)]
+    # 3 parallel jobs (defaults.jobs), yet ids follow config order
+    assert [ids[f"youtube:abcdefghijk:{t}.000-{t + 1}.000"] for t in (10, 20, 30)] == \
+        [f"plate-ksa-day-clip_000{n}" for n in (1, 2, 3)]
 
     # "Another PC": manifest copied, no clips; segments in another order, one new, the first one failing.
     for f in (tmp_path / "data/plates").rglob("*.*"):
