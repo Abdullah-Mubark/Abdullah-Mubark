@@ -90,8 +90,8 @@ def test_roboflow_missing_key(cfg_dir, monkeypatch):
 
 
 def test_roboflow_bad_slug(cfg_dir):
-    edit_yaml(cfg_dir / "roboflow_datasets.yaml", lambda c: c.update(datasets=[{"slug": "a/b", "country": "oman"}]))
-    with pytest.raises(ConfigError, match="workspace/project/version"):
+    edit_yaml(cfg_dir / "roboflow_datasets.yaml", lambda c: c.update(datasets=[{"slug": "a", "country": "oman"}]))
+    with pytest.raises(ConfigError, match="workspace/project"):
         roboflow.main(["--config-dir", str(cfg_dir)])
 
 
@@ -199,3 +199,24 @@ def test_local_face_transcode(cfg_dir, tmp_path):
                        "--dataset", "office", "--mode", "transcode", "--consent-ack"]) == 0
     row = _manifest(tmp_path).rows["face-office-clip_0001"]
     assert row["path"].endswith("faces/office/clip_0001.mp4")
+
+
+def test_roboflow_latest_version(server, cfg_dir, tmp_path, monkeypatch):
+    zbuf = io.BytesIO()
+    with zipfile.ZipFile(zbuf, "w") as zf:
+        zf.writestr("test/images/a.jpg", b"jpg")
+        zf.writestr("test/labels/a.txt", "0 0.5 0.5 0.1 0.1\n")
+    server.routes["/dl/v7.zip"] = zbuf.getvalue()
+    server.routes["/ws/uae-plates"] = {"project": {"license": "CC BY 4.0", "versions": 7},
+                                       "versions": [{"id": "ws/uae-plates/3"}, {"id": "ws/uae-plates/7"}]}
+    server.routes["/ws/uae-plates/7/yolov8"] = {"export": {"link": server.url + "/dl/v7.zip"}}
+    server.routes["/ws/empty"] = {"project": {"versions": 0}, "versions": []}
+    edit_yaml(cfg_dir / "roboflow_datasets.yaml", lambda c: c.update(api_url=server.url, datasets=[
+        {"url": "https://universe.roboflow.com/ws/uae-plates", "country": "uae"},
+        {"slug": "ws/empty", "country": "oman"}]))
+    monkeypatch.setenv("ROBOFLOW_API_KEY", "K")
+    assert roboflow.main(["--config-dir", str(cfg_dir)]) == 1  # the empty project fails, the other succeeds
+    row = _manifest(tmp_path).rows["plateimg-uae-ws__uae-plates__v7"]
+    assert row["license"] == "CC BY 4.0" and row["frame_count"] == "1"
+    assert roboflow.latest_version({"project": {"versions": 4}}) == 4
+    assert roboflow.latest_version({}) is None

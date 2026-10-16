@@ -14,7 +14,7 @@ from ..errors import ConfigError, DownloadError, GccvtError
 from ..manifest import Manifest
 from ..net import HttpClient
 
-URL_RX = re.compile(r"universe\.roboflow\.com/([^/]+)/([^/]+)/(?:dataset|model)/(\d+)")
+URL_RX = re.compile(r"universe\.roboflow\.com/([^/?#]+)/([^/?#]+)(?:/(?:dataset|model)/(\d+))?")
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
@@ -24,21 +24,21 @@ def parse_entry(entry: dict[str, Any], settings: Settings, idx: int) -> dict[str
         m = URL_RX.search(str(entry["url"]))
         if not m:
             raise ConfigError(f"{where}cannot parse url {entry['url']!r}; expected "
-                              "https://universe.roboflow.com/<workspace>/<project>/dataset/<version>")
+                              "https://universe.roboflow.com/<workspace>/<project>[/dataset/<version>]")
         ws, proj, ver = m.groups()
     elif entry.get("slug"):
         parts = str(entry["slug"]).strip("/").split("/")
-        if len(parts) != 3:
-            raise ConfigError(f"{where}slug must be 'workspace/project/version', got {entry['slug']!r}")
-        ws, proj, ver = parts
+        if len(parts) not in (2, 3):
+            raise ConfigError(f"{where}slug must be 'workspace/project[/version]', got {entry['slug']!r}")
+        ws, proj, ver = (parts + [None])[:3]
     else:
         ws, proj, ver = entry.get("workspace"), entry.get("project"), entry.get("version")
-        if not (ws and proj and ver):
-            raise ConfigError(f"{where}needs url, slug, or workspace+project+version")
-    if not str(ver).isdigit():
+        if not (ws and proj):
+            raise ConfigError(f"{where}needs url, slug, or workspace+project[+version]")
+    if ver is not None and not str(ver).isdigit():
         raise ConfigError(f"{where}version must be a number, got {ver!r}")
     return {
-        "workspace": ws, "project": proj, "version": int(ver),
+        "workspace": ws, "project": proj, "version": int(ver) if ver is not None else None,
         "country": settings.normalize_country(entry.get("country"), where=where),
         "notes": entry.get("notes", ""),
     }
@@ -65,13 +65,23 @@ def get_export_link(client: HttpClient, api: str, ds: dict, fmt: str, key: str,
         time.sleep(poll_s)
 
 
-def project_license(client: HttpClient, api: str, ds: dict, key: str) -> str:
-    try:
-        data = client.get_json(f"{api}/{ds['workspace']}/{ds['project']}", params={"api_key": key},
-                               what="Roboflow project info")
-        return str((data.get("project") or {}).get("license") or "")
-    except GccvtError:
-        return ""
+def project_info(client: HttpClient, api: str, ds: dict, key: str) -> dict:
+    return client.get_json(f"{api}/{ds['workspace']}/{ds['project']}", params={"api_key": key},
+                           what=f"Roboflow project info {ds['workspace']}/{ds['project']}")
+
+
+def latest_version(info: dict) -> int | None:
+    """Highest version number in a Roboflow project-info response."""
+    nums = []
+    for v in info.get("versions") or []:
+        vid = str(v.get("id", "")) if isinstance(v, dict) else str(v)
+        tail = vid.rstrip("/").rsplit("/", 1)[-1]
+        if tail.isdigit():
+            nums.append(int(tail))
+    if nums:
+        return max(nums)
+    count = (info.get("project") or {}).get("versions")
+    return int(count) if isinstance(count, int) and count > 0 else None
 
 
 def count_images(folder: Path) -> int:
@@ -96,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.dry_run:
         for ds in datasets:
-            print(f"{ds['country']:8} {ds['workspace']}/{ds['project']}/{ds['version']} ({fmt})")
+            print(f"{ds['country']:8} {ds['workspace']}/{ds['project']}/{ds['version'] or 'latest'} ({fmt})")
         return 0
 
     key = env_required("ROBOFLOW_API_KEY", "Add it to .env (see .env.example); get one at "
@@ -106,10 +116,23 @@ def main(argv: list[str] | None = None) -> int:
     failed: list[str] = []
 
     for ds in datasets:
-        name = f"{ds['workspace']}__{ds['project']}__v{ds['version']}"
-        out_dir = settings.path("plates_images") / ds["country"] / name
-        done_marker = out_dir / ".complete"
         try:
+            info: dict = {}
+            try:
+                info = project_info(client, api, ds, key)
+            except GccvtError as e:
+                if ds["version"] is None:
+                    raise
+                log.warning("%s", e)
+            if ds["version"] is None:
+                ds["version"] = latest_version(info)
+                if ds["version"] is None:
+                    raise DownloadError(f"{ds['workspace']}/{ds['project']}: no dataset versions found - the project "
+                                        "may have no generated version; set one explicitly (url .../dataset/<N>)")
+                log.info("%s/%s: using latest version %d", ds["workspace"], ds["project"], ds["version"])
+            name = f"{ds['workspace']}__{ds['project']}__v{ds['version']}"
+            out_dir = settings.path("plates_images") / ds["country"] / name
+            done_marker = out_dir / ".complete"
             if done_marker.is_file() and not args.force:
                 log.info("Already downloaded: %s", name)
             else:
@@ -129,13 +152,14 @@ def main(argv: list[str] | None = None) -> int:
                 "frame_count": count_images(out_dir),
                 "source_url": f"https://universe.roboflow.com/{ds['workspace']}/{ds['project']}/dataset/{ds['version']}",
                 "source_key": f"roboflow:{ds['workspace']}/{ds['project']}/{ds['version']}:{fmt}",
-                "license": project_license(client, api, ds, key),
+                "license": str((info.get("project") or {}).get("license") or ""),
                 "gt_path": settings.rel(out_dir), "notes": ds["notes"],
             })
             manifest.save()
         except GccvtError as e:
-            log.error("%s: %s", name, e)
-            failed.append(name)
+            label = f"{ds['workspace']}/{ds['project']}"
+            log.error("%s: %s", label, e)
+            failed.append(label)
 
     if failed:
         log.error("%d dataset(s) failed: %s", len(failed), ", ".join(failed))
