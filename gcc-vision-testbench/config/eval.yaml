@@ -39,7 +39,9 @@ gt:
 
 roboflow:
   splits: [test, valid]         # first split that exists is used
-  class_map: {"*": plate}       # dataset class name -> label ("*" = any other); "" drops a class
+  # dataset class name -> label ("*" = any other); "" drops a class. Only whole-plate classes are
+  # kept: some datasets (e.g. uae/zara-hara) also box each character and emirate badge.
+  class_map: {LP: plate, plate: plate, license_plate: plate, "*": ""}
 
 breakdown: [country, condition, source, clip_id]
 

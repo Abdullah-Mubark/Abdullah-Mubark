@@ -6,115 +6,127 @@
 defaults:
   download_mode: section     # section: fetch only the segment | full: fetch whole video (cached, reused)
   fallback_to_full: true     # if a section download fails, try the full video
-  format: "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b"
+  format: "bv*[height<=2160]+ba/b[height<=2160]/bv*+ba/b"   # keep in step with video.target_height
   attempts: 3
   cookies_from_browser: null # e.g. "chrome" if YouTube asks you to sign in
   rate_limit: null           # e.g. "5M"
 
-# Real GCC driving videos (found by title/description search). The segment times are a starting
-# point, NOT verified: each skips the first ~2 minutes of intro and takes 60 s. Preview each video and
-# move the segment to a stretch with traffic and readable plates (behind cars, at lights, in queues).
-# Day/night comes from the video title. A rear-facing camera (Dubai, below) shows front plates.
+# Real GCC driving videos. Segments were chosen from contact sheets (one frame every 15 s over the
+# whole video) for close, slow traffic with plates facing the camera; the score (1-5) is how good
+# the segment is for plate testing. The best ones were checked at full resolution, where plates
+# are readable. Sources with nothing usable are kept but disabled (enabled: false), with the reason.
+# A rear-facing camera (Dubai, below) shows front plates.
 sources:
   # ---- Saudi Arabia ----------------------------------------------------------------------------
-  - url: "https://www.youtube.com/watch?v=wo2Q5bELiC0"
-    country: ksa
-    condition: day
-    start: "02:00"
-    end: "03:00"
-    notes: "Riyadh 4K Driving Tour"
   - url: "https://www.youtube.com/watch?v=sS2UegfCB6o"
     country: ksa
     condition: day
-    start: "02:00"
-    end: "03:00"
-    notes: "4K Drive Riyadh"
+    segments:
+      - {start: "43:00", end: "44:00"}   # 5: stop-and-go, SUV/Land Cruiser/semi 1-2 lengths ahead (plates readable)
+      - {start: "20:00", end: "21:00"}   # 5: bumper-to-bumper, 3 lanes of close rears, truck + pickup
+      - {start: "32:00", end: "33:00"}   # 5: box truck, Jeep, sedans close
+    notes: "4K Drive Riyadh (1h07). 18:00-34:00 is dense urban expressway traffic throughout"
+  - url: "https://www.youtube.com/watch?v=wo2Q5bELiC0"
+    country: ksa
+    condition: day
+    enabled: false
+    start: "03:30"
+    end: "04:30"                         # 2: sun straight into the lens, plates in silhouette
+    notes: "Riyadh 4K Driving Tour - desert highway, low-sun glare. Only useful as a glare stress test"
   - url: "https://www.youtube.com/watch?v=PNDPhXbtnp8"
     country: ksa
     condition: night
-    start: "02:00"
-    end: "03:00"
-    notes: "Riyadh Night Driving 4K POV (~32 min, no narration)"
+    segments:
+      - {start: "21:15", end: "22:15"}   # 4: dense queue on a lit arterial, cars 1-2 lengths ahead, taillight bloom
+      - {start: "03:45", end: "04:45"}   # 3: moderate city traffic, several cars close
+    notes: "Riyadh Night Driving 4K POV (~32 min). Starburst flare from streetlights; sparse after 23:00"
   - url: "https://www.youtube.com/watch?v=A1sXfDpPUkE"
     country: ksa
     condition: night
-    start: "02:00"
-    end: "03:00"
-    notes: "[4K] Riyadh City Drive at Night (Dirab Rd, King Fahd Rd - chapter list in description)"
+    enabled: false
+    start: "14:45"
+    end: "15:45"                         # 2: one or two cars nearby, mostly overtaking
+    notes: "[4K] Riyadh City Drive at Night - burned-in YouTube watermark, fisheye, many tunnels"
 
   # ---- UAE -------------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=EMyPq0cFKo0"
     country: uae
     condition: day
-    start: "02:00"
-    end: "03:00"
-    notes: "4K dashcam, Dubai downtown / Sheikh Zayed Rd (2019)"
+    start: "12:00"
+    end: "13:00"                         # 3: only city-street stretch, close cars mostly in side lanes
+    notes: "4K dashcam, Dubai downtown / Sheikh Zayed Rd (2019). Mostly highway; tunnels at 09:15, 13:15"
   - url: "https://www.youtube.com/watch?v=QsiNVMgPLO4"
     country: uae
     condition: day
-    start: "02:00"
-    end: "03:00"
-    notes: "Rear-view drive on Sheikh Zayed Rd - shows FRONT plates of following cars"
+    start: "03:30"
+    end: "04:30"                         # 2-3: densest following traffic, but cars 3-5 lengths back
+    notes: "Rear-view drive on Sheikh Zayed Rd - FRONT plates of following cars. Hood fills lower third"
   - url: "https://www.youtube.com/watch?v=1c-UaSwQjsU"
     country: uae
     condition: night
     segments:
-      - {start: "01:00", end: "02:00"}   # chapter 00:33 Sheikh Zayed Rd towards Abu Dhabi
-      - {start: "22:30", end: "23:30"}   # chapter 22:14 Sheikh Zayed Rd towards Sharjah
-    notes: "Sheikh Zayed Road 4K late-night drive, full tour"
+      - {start: "33:30", end: "34:30"}   # 2-3: busiest downtown stretch, but cars far at highway speed
+      - {start: "15:00", end: "16:00"}   # 2-3: taxi and cars close, heavy orange cast
+    notes: "Sheikh Zayed Road 4K late-night drive. Fisheye, fast highway: a hard/far-plate case"
 
   # ---- Qatar -----------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=O72aSE8C2bk"
     country: qatar
     condition: day
+    enabled: false
     start: "02:00"
     end: "03:00"
-    notes: "Doha 4K driving tour: downtown, business district, Corniche"
+    notes: "Doha 4K driving tour - video is now PRIVATE"
   - url: "https://www.youtube.com/watch?v=rVjuZrf73yU"
     country: qatar
     condition: night
+    enabled: false
     start: "02:00"
     end: "03:00"
-    notes: "Night Driving in Doha 4K"
+    notes: "Night Driving in Doha 4K - video is now PRIVATE"
 
   # ---- Kuwait ----------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=WbUPHeIBC9k"
     country: kuwait
     condition: day
-    start: "02:00"
-    end: "03:00"
+    segments:
+      - {start: "06:00", end: "07:00"}   # 4: slow downtown street, Prado 1 length ahead (plates readable)
+      - {start: "03:45", end: "04:45"}   # 4: bus, SUVs, sedans 1-2 lengths ahead
     notes: "Kuwait City 2024 driving downtown 4K"
   - url: "https://www.youtube.com/watch?v=jcdzKbvS2yk"
     country: kuwait
     condition: night
-    start: "02:00"
-    end: "03:00"
-    notes: "Kuwait City 4K night drive (Jahra St, Sharq, Dasman)"
+    enabled: false
+    start: "02:30"
+    end: "03:30"                         # 2-3: a few close cars in Mubarakiya
+    notes: "Kuwait City 4K night drive - large 'Travel Explore SG' watermark, haze, motion blur"
 
   # ---- Oman ------------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=Rue7YeacNgs"
     country: oman
     condition: day
-    start: "02:00"
-    end: "03:00"
-    notes: "Muscat: Rusayl roundabout to Al Ghubrah, Sultan Qaboos St"
+    enabled: false
+    start: "02:15"
+    end: "03:15"                         # 2: open highway, single close cars
+    notes: "Muscat: Rusayl roundabout to Al Ghubrah, Sultan Qaboos St - near-empty highway"
   - url: "https://www.youtube.com/watch?v=Ve0EAomuxro"
     country: oman
     condition: night
-    start: "02:00"
-    end: "03:00"
-    notes: "4K night drive Sohar to Muscat (highway)"
+    enabled: false
+    start: "03:30"
+    end: "04:30"                         # 2: roundabout, otherwise sparse
+    notes: "4K night drive Sohar to Muscat - intercity highway, sparse traffic"
 
   # ---- Bahrain ---------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=9ZV-XJ9eAZk"
     country: bahrain
     condition: day
-    start: "02:00"
-    end: "03:00"
-    notes: "Bahrain 4K - driving downtown Manama"
+    start: "00:00"
+    end: "01:00"                         # 4: dense slow downtown traffic (plates readable)
+    notes: "Bahrain 4K - driving downtown Manama. Hazy; mostly highway after 02:00"
   - url: "https://www.youtube.com/watch?v=RpfqUJ8lacs"
     country: bahrain
     condition: night
-    start: "02:00"
-    end: "03:00"
-    notes: "King Faisal Corniche Road - driving at night"
+    start: "03:15"
+    end: "04:15"                         # 4: heavy queue at a lit junction, cars 1-2 lengths away
+    notes: "King Faisal Corniche Road at night - low fisheye on the hood, plates small and angled"

@@ -4,14 +4,14 @@ PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 ARGS ?=
 
 .PHONY: help venv install collect collect-faces collect-roboflow collect-youtube collect-local \
-        manifest prep extract dedupe preannotate install-models eval report compare test clean-logs
+        manifest prep extract dedupe preannotate install-models eval report compare test clean-data clean-logs
 
 help:
 	@echo "make install          create .venv and install requirements"
 	@echo "make collect          run all collectors (faces, roboflow, youtube, local)"
 	@echo "make collect-faces    ChokePoint from Zenodo"
 	@echo "make collect-roboflow Roboflow Universe plate datasets"
-	@echo "make collect-youtube  YouTube segments -> 1080p clips"
+	@echo "make collect-youtube  YouTube segments -> MP4 clips (4K by default)"
 	@echo "make collect-local    your own footage (config/local_sources.yaml)"
 	@echo "make manifest         summary of data/manifest.csv"
 	@echo "make prep             extract frames, dedupe, pre-annotate (if detectors enabled)"
@@ -21,6 +21,7 @@ help:
 	@echo "make report           HTML report + annotated video clips for the latest eval run"
 	@echo "make compare ARGS='RUN_A RUN_B'   what differed between two runs, and the metric changes"
 	@echo "make test             run unit tests"
+	@echo "make clean-data       show disk use under data/; ARGS=\"raw frames --yes\" deletes (see --help)"
 	@echo "Pass extra flags with ARGS, e.g. make collect-youtube ARGS='--dry-run --country ksa'"
 
 venv:
@@ -73,6 +74,9 @@ compare:
 
 test:
 	$(PY) -m pytest -q
+
+clean-data:
+	$(PY) scripts/clean_data.py $(ARGS)
 
 clean-logs:
 	rm -rf logs

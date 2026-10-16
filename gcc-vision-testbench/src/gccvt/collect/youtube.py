@@ -1,4 +1,4 @@
-"""Download YouTube segments with yt-dlp and trim/encode them to 1080p clips with ffmpeg.
+"""Download YouTube segments with yt-dlp and trim/encode them to MP4 clips (video.target_height) with ffmpeg.
 
 Clips go to data/plates/{country}/{condition}/clip_NNNN.mp4 with a metadata JSON beside each.
 Already-collected segments (same video + start/end) are skipped.

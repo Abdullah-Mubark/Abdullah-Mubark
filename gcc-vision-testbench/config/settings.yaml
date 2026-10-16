@@ -40,8 +40,8 @@ network:
   user_agent: "gcc-vision-testbench/0.1"
 
 video:                  # output encoding for YouTube clips (and local "transcode" mode)
-  target_height: 1080
-  allow_upscale: false  # if false, sources below 1080p keep their resolution (logged)
+  target_height: 2160   # 4K: plates are ~2x wider in pixels than at 1080p
+  allow_upscale: false  # if false, sources below target_height keep their resolution (logged)
   codec: libx264
   crf: 18
   preset: medium

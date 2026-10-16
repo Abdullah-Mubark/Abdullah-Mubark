@@ -1,0 +1,13 @@
+# Claude Code: local settings, session files and worktrees (.claude/worktrees/)
+.claude/
+CLAUDE.local.md
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*:Zone.Identifier
+.idea/
+.vscode/
+*.swp
+*~

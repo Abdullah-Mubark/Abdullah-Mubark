@@ -96,7 +96,9 @@ sources:
 - **`download_mode: section`** (default) asks yt-dlp for just the segment.
 - **`download_mode: full`** downloads the whole video once to `data/raw/youtube/full/` and reuses
   it for every segment. Use it when you cut many clips from one video.
-- **Encoding.** ffmpeg re-encodes each clip to H.264 MP4 at 1080p.
+- **Encoding.** ffmpeg re-encodes each clip to H.264 MP4 at `video.target_height` (default 2160,
+  i.e. 4K: a plate is about twice as many pixels wide as at 1080p). The yt-dlp `format` in
+  `youtube_sources.yaml` caps the download at the same height; keep the two in step.
   - With `video.allow_upscale: false`, lower-resolution sources keep their resolution, and the
     script logs a warning.
   - Audio is dropped unless `video.keep_audio: true`.
@@ -116,7 +118,7 @@ python scripts/collect/local_import.py --src ~/door_cam --task face --dataset of
 ```
 
 Modes: `copy` (default, keeps the original format), `link` (hard link or symlink, no extra disk
-space), `transcode` (re-encode to 1080p MP4). Files are de-duplicated by SHA-256. You can also list
+space), `transcode` (re-encode to MP4 at `video.target_height`). Files are de-duplicated by SHA-256. You can also list
 sources in `config/local_sources.yaml` and run `make collect-local`.
 
 ## Preprocessing
@@ -327,7 +329,39 @@ detections, false positives and misreads, played at half speed. The failure is o
 It supports light and dark mode and works on a phone. The playback speed, size and frame cap
 for clips are under `report:` in `config/eval.yaml`.
 
-## Data layout
+## Cleaning up data
+
+`make clean-data` shows how much space each kind of data takes. Name one or more categories
+to see what would be deleted, and add `--yes` to delete it. Nothing is deleted without `--yes`.
+
+```bash
+make clean-data                                         # disk use per category
+make clean-data ARGS="raw"                              # preview: archives, full videos, temp files
+make clean-data ARGS="raw frames --yes"                 # delete them
+make clean-data ARGS="clips --source youtube --yes"     # YouTube clips + their frames and drafts
+make clean-data ARGS="images --country uae --yes"       # one country's Roboflow datasets
+make clean-data ARGS="all --yes"                        # everything except your gt/ labels
+```
+
+| Category | What | Comes back with |
+|---|---|---|
+| `clips` | plate videos (YouTube, local) + their frames and draft labels | `make collect-youtube` / `collect-local` |
+| `images` | Roboflow datasets | `make collect-roboflow` |
+| `faces` | face videos and ChokePoint sequences + frames and drafts | `make collect-faces` / `collect-local` |
+| `frames` | extracted frames | `make extract` |
+| `drafts` | pre-annotation drafts (`gt/` is kept) | `make preannotate` |
+| `results` | evaluation runs | `make eval` |
+| `raw` | downloads as received; deleting them does not cause re-downloads | not needed |
+| `gt` | your corrected labels; never in `all`, only deleted when named | your CVAT work |
+
+- **Manifest rows.** Rows for deleted clips are removed from `manifest.csv`, so the collectors
+  download them again next time.
+- **Filters.** `--source`, `--country`, `--condition` and `--clip` narrow `clips`, `images`,
+  `faces`, `frames`, `drafts` and `gt`.
+- **Labelled clips.** A clip with `annotations/{clip_id}/gt/` is kept, along with its frames,
+  unless you add `--include-labelled`. Clip numbers are reused after a delete, so labels left
+  behind for a deleted clip could end up attached to a different video.
+
 ## Data layout
 
 ```
