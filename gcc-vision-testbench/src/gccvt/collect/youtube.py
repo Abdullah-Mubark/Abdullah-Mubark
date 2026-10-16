@@ -1,7 +1,9 @@
 """Download YouTube segments with yt-dlp and trim/encode them to MP4 clips (video.target_height) with ffmpeg.
 
 Clips go to data/plates/{country}/{condition}/clip_NNNN.mp4 with a metadata JSON beside each.
-Already-collected segments (same video + start/end) are skipped.
+Already-collected segments (same video + start/end) are skipped. Several segments can run at once
+(defaults.jobs / --jobs) so downloading overlaps with encoding; clip numbers are still handed out
+in config order before anything starts.
 """
 
 from __future__ import annotations
@@ -12,6 +14,9 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -145,14 +150,14 @@ def is_final_download(p: Path) -> bool:
     return not any(s.startswith(".f") and s[2:].isdigit() for s in p.suffixes[:-1])
 
 
-def process(job: Job, ytdlp: YtDlp, settings: Settings, defaults: dict, manifest: Manifest, log) -> Path:
+_full_video_locks: defaultdict[str, threading.Lock] = defaultdict(threading.Lock)  # one full download per video
+
+
+def process(job: Job, dst: Path, ytdlp: YtDlp, settings: Settings, defaults: dict, manifest: Manifest, log) -> Path:
     raw = settings.path("raw") / "youtube"
     video_cfg = settings.section("video")
     info = ytdlp.info(job.url)
     vid = info.get("id") or job.video_key
-    folder = settings.path("plates") / job.country / job.condition
-    dst = manifest.clip_path(folder, settings.section("clips").get("name_pattern", "clip_{n:04d}"), ".mp4",
-                             f"plate-{job.country}-{job.condition}", job.source_key)
     duration = job.end - job.start
     mode = defaults.get("download_mode", "section")
 
@@ -173,8 +178,9 @@ def process(job: Job, ytdlp: YtDlp, settings: Settings, defaults: dict, manifest
     if mode == "full":
         full_dir = raw / "full"
         full_dir.mkdir(parents=True, exist_ok=True)
-        cached = [p for p in full_dir.glob(f"{vid}.*") if is_final_download(p)]
-        src = cached[0] if cached else ytdlp.download(job.url, full_dir / f"{vid}.%(ext)s", None)
+        with _full_video_locks[vid]:
+            cached = [p for p in full_dir.glob(f"{vid}.*") if is_final_download(p)]
+            src = cached[0] if cached else ytdlp.download(job.url, full_dir / f"{vid}.%(ext)s", None)
         if cached:
             log.info("Using cached full video %s", src.name)
         meta_out = transcode(src, dst, video_cfg, start=job.start, duration=duration)
@@ -212,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--country", help="only sources for this country")
     p.add_argument("--condition", help="only day or night")
     p.add_argument("--limit", type=int, help="process at most N segments")
+    p.add_argument("--jobs", type=int, help="segments to process at once (default: defaults.jobs, else 1)")
     args = p.parse_args(argv)
     settings, log = init("download_youtube", args)
     cfg = settings.load("youtube_sources.yaml")
@@ -250,15 +257,30 @@ def main(argv: list[str] | None = None) -> int:
     require_tool("ffmpeg")
     require_tool("ffprobe")
     ytdlp = YtDlp(defaults, settings.section("network"))
-    failed = []
-    for i, job in enumerate(todo, 1):
+    # Hand out clip paths up front, in config order, so ids don't depend on which download finishes first.
+    pattern = settings.section("clips").get("name_pattern", "clip_{n:04d}")
+    handed_out: defaultdict[str, list[str]] = defaultdict(list)
+    plan = []
+    for job in todo:
+        prefix = f"plate-{job.country}-{job.condition}"
+        dst = manifest.clip_path(settings.path("plates") / job.country / job.condition, pattern, ".mp4",
+                                 prefix, job.source_key, handed_out[prefix])
+        handed_out[prefix].append(dst.stem)
+        plan.append((job, dst))
+
+    def run_one(i: int, job: Job, dst: Path) -> Job | None:
         log.info("[%d/%d] %s %s/%s [%s]", i, len(todo), job.url, job.country, job.condition, _span(job))
         try:
-            dst = process(job, ytdlp, settings, defaults, manifest, log)
+            process(job, dst, ytdlp, settings, defaults, manifest, log)
             log.info("Saved %s", settings.rel(dst))
+            return None
         except (DownloadError, MediaError, ToolMissingError) as e:
             log.error("%s%s: %s", job.where, job.url, e)
-            failed.append(job)
+            return job
+
+    workers = max(1, args.jobs or int(defaults.get("jobs") or 1))
+    with ThreadPoolExecutor(workers) as ex:
+        failed = [j for j in ex.map(lambda a: run_one(*a), ((i, j, d) for i, (j, d) in enumerate(plan, 1))) if j]
     if failed:
         log.error("%d/%d segment(s) failed - fix the errors above and re-run (finished ones are skipped)",
                   len(failed), len(todo))

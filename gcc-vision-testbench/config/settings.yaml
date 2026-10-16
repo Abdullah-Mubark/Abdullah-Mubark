@@ -44,5 +44,5 @@ video:                  # output encoding for YouTube clips (and local "transcod
   allow_upscale: false  # if false, sources below target_height keep their resolution (logged)
   codec: libx264
   crf: 18
-  preset: medium
+  preset: veryfast       # x264 speed: veryfast encodes 4K ~2-3x faster than medium, files ~25% bigger
   keep_audio: false

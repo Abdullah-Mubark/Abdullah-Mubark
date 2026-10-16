@@ -8,6 +8,7 @@ defaults:
   fallback_to_full: true     # if a section download fails, try the full video
   format: "bv*[height<=2160]+ba/b[height<=2160]/bv*+ba/b"   # keep in step with video.target_height
   attempts: 3
+  jobs: 3                    # segments at once: downloading overlaps with encoding (--jobs overrides)
   cookies_from_browser: null # e.g. "chrome" if YouTube asks you to sign in
   rate_limit: null           # e.g. "5M"
 
