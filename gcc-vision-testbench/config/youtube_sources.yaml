@@ -48,6 +48,13 @@ sources:
     end: "15:45"                         # 2: one or two cars nearby, mostly overtaking
     notes: "[4K] Riyadh City Drive at Night - burned-in YouTube watermark, fisheye, many tunnels"
 
+  - url: "https://www.youtube.com/watch?v=9UZF5R9V5pQ"
+    country: ksa
+    condition: night
+    start: "04:15"
+    end: "05:15"                         # 3-4: Riyadh city queue, Land Cruiser 1 length ahead (plate readable)
+    notes: "RIYADH City in 4K - Night drive (Olaya St to King Fahad Rd). Dark exposure; subscribe pop-up ~04:00"
+
   # ---- UAE -------------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=EMyPq0cFKo0"
     country: uae
@@ -69,6 +76,21 @@ sources:
       - {start: "15:00", end: "16:00"}   # 2-3: taxi and cars close, heavy orange cast
     notes: "Sheikh Zayed Road 4K late-night drive. Fisheye, fast highway: a hard/far-plate case"
 
+  - url: "https://www.youtube.com/watch?v=jygoFZVOdKA"
+    country: uae
+    condition: day
+    segments:
+      - {start: "12:00", end: "13:00"}   # 4: Naif souq streets, cars 1-2 lengths ahead (plates readable)
+      - {start: "05:00", end: "06:00"}   # 4: Deira main street, several cars close
+    notes: "[4K 60fps] Dubai Driving - Naif Deira Daytime Drive. Has non-UAE (e.g. Omani) plates too"
+  - url: "https://www.youtube.com/watch?v=SWCx-OecPSk"
+    country: uae
+    condition: night                     # the title doesn't say; the whole video is at night
+    segments:
+      - {start: "06:15", end: "07:15"}   # 4-5: dense stop-and-go queue, pickup right ahead (plate readable)
+      - {start: "03:15", end: "04:15"}   # 4: busy Naif street, van and sedans close
+    notes: "[4K 60fps] Dubai Driving - Deira, Naif, Al Muraqqabat. Street-name title cards at 18:30-22:45"
+
   # ---- Qatar -----------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=O72aSE8C2bk"
     country: qatar
@@ -84,6 +106,21 @@ sources:
     start: "02:00"
     end: "03:00"
     notes: "Night Driving in Doha 4K - video is now PRIVATE"
+
+  - url: "https://www.youtube.com/watch?v=xX31l9Us1TA"
+    country: qatar
+    condition: day
+    segments:
+      - {start: "07:00", end: "08:00"}   # 4-5: slow city queue, MG SUV 1-2 lengths ahead (plate sharp)
+      - {start: "02:15", end: "03:15"}   # 4: stop-and-go, white SUV ahead, bus alongside
+    notes: "Doha Qatar 4K Dashcam Drive. Tunnels 09:15-14:30; sun glare from 17:15"
+  - url: "https://www.youtube.com/watch?v=c94AG2Aa5wQ"
+    country: qatar
+    condition: night
+    segments:
+      - {start: "22:00", end: "23:00"}   # 4: dense shop street behind a pickup, cars close both sides (plates readable)
+      - {start: "10:00", end: "11:00"}   # 4: Land Cruiser 1-2 lengths ahead, several cars near
+    notes: "Mansoura, Heart of Doha - Busy Streets Night Drive 4K. Starburst flare around lights"
 
   # ---- Kuwait ----------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=WbUPHeIBC9k"
@@ -101,6 +138,13 @@ sources:
     end: "03:30"                         # 2-3: a few close cars in Mubarakiya
     notes: "Kuwait City 4K night drive - large 'Travel Explore SG' watermark, haze, motion blur"
 
+  - url: "https://www.youtube.com/watch?v=D-LiGRgjINg"
+    country: kuwait
+    condition: night
+    start: "16:15"
+    end: "17:15"                         # 5: dense jam, ~8 plates in frame; small plates and taillight bloom
+    notes: "Kuwait at Night 4K - Avenues Mall to Salmiya. Windshield reflections; preview montage 00:00-01:15"
+
   # ---- Oman ------------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=Rue7YeacNgs"
     country: oman
@@ -116,6 +160,25 @@ sources:
     start: "03:30"
     end: "04:30"                         # 2: roundabout, otherwise sparse
     notes: "4K night drive Sohar to Muscat - intercity highway, sparse traffic"
+
+  - url: "https://www.youtube.com/watch?v=oLaxSi0ZYes"
+    country: oman
+    condition: day
+    start: "17:00"
+    end: "18:00"                         # 3: many close plates, but mostly parked cars at an angle
+    notes: "Mabaila Oman 2026 4K Driving Tour. Hazy, bonnet in frame, small channel watermark top-left"
+  - url: "https://www.youtube.com/watch?v=3HfbT1-J86E"
+    country: oman
+    condition: day
+    start: "30:00"
+    end: "31:00"                         # 3: Muttrah corniche, cars 1-3 lengths ahead, clean image
+    notes: "Muscat, Oman - Driving Tour 4K (DS Nevada). Small caption/logo; mostly empty roads otherwise"
+  - url: "https://www.youtube.com/watch?v=d_rDxO7_UQg"
+    country: oman
+    condition: night
+    start: "07:00"
+    end: "08:00"                         # 3: several cars 1-2 lengths ahead; flare and motion blur
+    notes: "Scenic Night Drive: Muttrah to Qurum, Muscat. Small watermark; underpass at ~08:30"
 
   # ---- Bahrain ---------------------------------------------------------------------------------
   - url: "https://www.youtube.com/watch?v=9ZV-XJ9eAZk"
