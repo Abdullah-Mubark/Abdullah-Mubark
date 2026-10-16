@@ -362,6 +362,26 @@ make clean-data ARGS="all --yes"                        # everything except your
   unless you add `--include-labelled`. Clip numbers are reused after a delete, so labels left
   behind for a deleted clip could end up attached to a different video.
 
+## Moving to another machine
+
+Videos and images don't need copying: the configs pin every YouTube segment and Roboflow version,
+so the other machine downloads the same data. Copy only what can't be downloaded again:
+
+```bash
+# on this machine, from gcc-vision-testbench/
+tar czf gccvt-transfer.tgz --exclude='*.mp4' --ignore-failed-read \
+    data/manifest.csv data/annotations/*/gt data/results
+# on the other machine, after git clone + make install + ROBOFLOW_API_KEY in .env
+tar xzf gccvt-transfer.tgz && make collect && make prep
+make report ARGS="--run <RUN_ID>"        # re-renders the annotated clips from local videos
+```
+
+Copy `manifest.csv` **before** collecting. A segment or local file that the manifest already
+lists gets the same `clip_id` again, whatever order the downloads finish in, so your labels and
+results still line up with the right clips. New sources get numbers the manifest hasn't used.
+Re-encoded frames can differ by a few bytes between ffmpeg versions; the metrics are still
+comparable, but a run's data fingerprint will show the difference.
+
 ## Data layout
 
 ```

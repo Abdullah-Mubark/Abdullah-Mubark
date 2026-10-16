@@ -8,7 +8,7 @@ import pytest
 
 from conftest import edit_yaml, make_jpeg, make_video
 from gccvt.collect import chokepoint, local, roboflow, youtube
-from gccvt.errors import ConfigError
+from gccvt.errors import ConfigError, DownloadError
 from gccvt.manifest import Manifest
 
 
@@ -146,6 +146,41 @@ def test_youtube_end_to_end(cfg_dir, tmp_path, monkeypatch):
 
     assert youtube.main(["--config-dir", str(cfg_dir)]) == 0
     assert len(downloads) == 2  # already collected -> skipped
+
+
+def test_youtube_ids_survive_copied_manifest(cfg_dir, tmp_path, monkeypatch):
+    """Re-collecting from a copied manifest gives every segment its old clip id, whatever the order."""
+    fail = set()
+
+    def fake_download(self, url, template, section):
+        if section[0] in fail:
+            raise DownloadError("network down")
+        return make_video(template.parent / template.name.replace("%(ext)s", "mkv"), seconds=1)
+
+    monkeypatch.setattr(youtube.YtDlp, "info", lambda self, url: {"id": "abcdefghijk"})
+    monkeypatch.setattr(youtube.YtDlp, "download", fake_download)
+    edit_yaml(cfg_dir / "settings.yaml", lambda c: c["video"].update(preset="ultrafast"))
+    seg = lambda start: {"url": "https://youtu.be/abcdefghijk", "country": "ksa", "condition": "day",  # noqa: E731
+                         "start": start, "end": start + 1}
+    edit_yaml(cfg_dir / "youtube_sources.yaml", lambda c: (c["defaults"].update(fallback_to_full=False),
+                                                         c.update(sources=[seg(10), seg(20), seg(30)])))
+    assert youtube.main(["--config-dir", str(cfg_dir)]) == 0
+    ids = {r["source_key"]: cid for cid, r in _manifest(tmp_path).rows.items()}
+    assert sorted(ids.values()) == [f"plate-ksa-day-clip_000{n}" for n in (1, 2, 3)]
+
+    # "Another PC": manifest copied, no clips; segments in another order, one new, the first one failing.
+    for f in (tmp_path / "data/plates").rglob("*.*"):
+        f.unlink()
+    edit_yaml(cfg_dir / "youtube_sources.yaml", lambda c: c.update(sources=[seg(30), seg(40), seg(20), seg(10)]))
+    fail.add(30)
+    assert youtube.main(["--config-dir", str(cfg_dir)]) == 1
+    fail.clear()
+    assert youtube.main(["--config-dir", str(cfg_dir)]) == 0
+    after = {r["source_key"]: cid for cid, r in _manifest(tmp_path).rows.items()}
+    assert {k: after[k] for k in ids} == ids
+    assert after["youtube:abcdefghijk:40.000-41.000"] == "plate-ksa-day-clip_0004"
+    assert sorted(p.name for p in (tmp_path / "data/plates/ksa/day").glob("*.mp4")) == \
+        [f"clip_000{n}.mp4" for n in (1, 2, 3, 4)]
 
 
 def test_youtube_full_mode_reuses_cache(cfg_dir, tmp_path, monkeypatch):

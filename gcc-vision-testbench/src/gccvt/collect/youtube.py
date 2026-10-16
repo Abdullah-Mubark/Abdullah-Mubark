@@ -19,7 +19,7 @@ from typing import Any
 from ..cli import base_parser, init
 from ..config import Settings
 from ..errors import ConfigError, DownloadError, GccvtError, MediaError, ToolMissingError
-from ..manifest import Manifest, next_clip_path, now_iso
+from ..manifest import Manifest, now_iso
 from ..media import parse_timestamp, require_tool, transcode, write_json
 from ..net import with_retries
 
@@ -151,7 +151,8 @@ def process(job: Job, ytdlp: YtDlp, settings: Settings, defaults: dict, manifest
     info = ytdlp.info(job.url)
     vid = info.get("id") or job.video_key
     folder = settings.path("plates") / job.country / job.condition
-    dst, _ = next_clip_path(folder, settings.section("clips").get("name_pattern", "clip_{n:04d}"), ".mp4")
+    dst = manifest.clip_path(folder, settings.section("clips").get("name_pattern", "clip_{n:04d}"), ".mp4",
+                             f"plate-{job.country}-{job.condition}", job.source_key)
     duration = job.end - job.start
     mode = defaults.get("download_mode", "section")
 
