@@ -116,13 +116,26 @@ class Annotator:
         overlay = Image.new("RGBA", (im.width, h), (11, 11, 11, 170))
         im.paste(overlay, (0, 0), overlay)
         draw.text((8, 6), title, fill="#ffffff", font=font)
-        # legend at the bottom
+        # legend at the bottom, shrunk until it fits the frame width (portrait / narrow video)
+        lfs = self.legend_size(draw, im.width, fs)
+        lfont = self.font(lfs)
+        h = lfs + 12
         x, y = 8, im.height - h
         im.paste(Image.new("RGBA", (im.width, h), (11, 11, 11, 150)), (0, y), Image.new("L", (im.width, h), 150))
         for color, label in LEGEND:
-            draw.rectangle([x, y + 6, x + fs, y + 6 + fs], outline=color, width=max(2, fs // 6))
-            draw.text((x + fs + 6, y + 6), label, fill="#ffffff", font=font)
-            x += fs + 18 + _text_size(draw, label, font)[0]
+            draw.rectangle([x, y + 6, x + lfs, y + 6 + lfs], outline=color, width=max(2, lfs // 6))
+            draw.text((x + lfs + 6, y + 6), label, fill="#ffffff", font=lfont)
+            x += lfs + 18 + _text_size(draw, label, lfont)[0]
+
+    def legend_size(self, draw, width: int, fs: int) -> int:
+        """Largest font size <= fs whose legend fits in `width` (never below 8)."""
+        while fs > 8 and self._legend_width(draw, fs) > width - 16:
+            fs -= 1
+        return fs
+
+    def _legend_width(self, draw, size: int) -> int:
+        font = self.font(size)
+        return sum(size + 18 + _text_size(draw, label, font)[0] for _, label in LEGEND) - 18
 
 
 def _text_size(draw, text, font) -> tuple[int, int]:

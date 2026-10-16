@@ -261,3 +261,15 @@ def test_report_no_runs(cfg_dir):
     from gccvt.report import build
     with pytest.raises(GccvtError, match="make eval"):
         build.main(["--config-dir", str(cfg_dir)])
+
+
+def test_clip_legend_fits_narrow_frames(cfg_dir):
+    from PIL import ImageDraw
+    from gccvt.report.clips import Annotator
+    cfg = {"detection": {"score_threshold": 0.5}, "plates": {}}
+    ann = Annotator(Settings(config_dir=cfg_dir), cfg, {"fonts": ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]})
+    draw = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    for width, fs in ((540, 20), (320, 20), (1920, 30)):
+        size = ann.legend_size(draw, width, fs)
+        assert size <= fs and ann._legend_width(draw, size) <= width - 16
+    assert ann.legend_size(draw, 1920, 30) == 30  # wide frames keep the full size
