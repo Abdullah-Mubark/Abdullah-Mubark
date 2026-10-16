@@ -109,6 +109,8 @@ def build_plan(settings: Settings, manifest: Manifest, cats: list[str], args) ->
             if p:
                 plan.add(cat, abs_(p))
         plan.add(cat, frames / cid)
+        for ext in (".mp4", ".csv"):                              # make face-clips output
+            plan.add(cat, settings.path("faces") / "clips" / f"{cid}{ext}")
         for p in drafts(cid):
             plan.add(cat, p)
     # Nothing of a row category left in the manifest: sweep its folder too (temp files, markers).

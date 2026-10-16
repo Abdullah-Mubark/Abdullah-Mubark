@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 ARGS ?=
 
 .PHONY: help venv install collect collect-faces collect-roboflow collect-youtube collect-local \
-        manifest prep extract dedupe preannotate install-models eval report compare test clean-data clean-logs
+        manifest prep extract dedupe preannotate face-clips install-models eval report compare test clean-data clean-logs
 
 help:
 	@echo "make install          create .venv and install requirements"
@@ -16,6 +16,7 @@ help:
 	@echo "make manifest         summary of data/manifest.csv"
 	@echo "make prep             extract frames, dedupe, pre-annotate (if detectors enabled)"
 	@echo "make extract / dedupe / preannotate   run one prep step"
+	@echo "make face-clips       encode image-sequence clips (ChokePoint) as MP4 in data/faces/clips/"
 	@echo "make install-models   optional detector dependencies (ultralytics, insightface)"
 	@echo "make eval             run the default model (config/models.yaml) on labelled clips"
 	@echo "make report           HTML report + annotated video clips for the latest eval run"
@@ -62,6 +63,9 @@ dedupe:
 
 preannotate:
 	$(PY) scripts/prep/preannotate.py $(ARGS)
+
+face-clips:
+	$(PY) scripts/prep/sequence_clips.py $(ARGS)
 
 eval:
 	$(PY) scripts/eval/run_eval.py $(ARGS)
