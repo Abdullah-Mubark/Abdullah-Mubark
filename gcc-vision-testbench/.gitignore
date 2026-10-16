@@ -1,8 +1,37 @@
+# Secrets (.env.example is the committed template)
 .env
+.env.*
+!.env.example
+
+# Collected data, run outputs and logs - never committed (see DATA_NOTICE.md)
 data/
 logs/
+*.log
+
+# Model weights (config/models.yaml points into models/)
+models/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.safetensors
+
+# Download leftovers (yt-dlp, interrupted transcodes)
+*.part
+*.ytdl
+*.tmp.mp4
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.egg-info/
-.pytest_cache/
+build/
+dist/
 .venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
