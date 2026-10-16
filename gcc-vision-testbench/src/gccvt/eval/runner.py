@@ -22,6 +22,7 @@ from typing import Any
 import numpy as np
 from PIL import Image, ImageDraw
 
+from .. import provenance
 from ..adapters import BaseAdapter, Box, create_adapter
 from ..cli import base_parser, init
 from ..config import Settings
@@ -60,7 +61,9 @@ def clean(obj: Any) -> Any:
     return obj
 
 
-def load_models(settings: Settings, spec: dict, needed: set[str], log) -> dict[str, BaseAdapter]:
+def load_models(settings: Settings, spec: dict, needed: set[str], log,
+                resolved: dict[str, dict] | None = None) -> dict[str, BaseAdapter]:
+    """Load the adapters for the needed roles. Fills `resolved` with the params each role got."""
     loaded: dict[str, BaseAdapter] = {}
     cache: dict[str, BaseAdapter] = {}
     for role in ROLES:
@@ -70,6 +73,8 @@ def load_models(settings: Settings, spec: dict, needed: set[str], log) -> dict[s
         if not r.get("adapter"):
             raise ConfigError(f"models.yaml: {role} needs an adapter")
         params = resolve_params(settings, r.get("params") or {})
+        if resolved is not None:
+            resolved[role] = params
         key = json.dumps([r["adapter"], params], sort_keys=True, default=str)
         if key not in cache:
             log.info("Loading %s: %s", role, r["adapter"])
@@ -450,7 +455,18 @@ def main(argv: list[str] | None = None) -> int:
                     "clips": [r["clip_id"] for r in rows], "unlabeled_clips": unlabeled,
                     "limit_frames": args.limit_frames}
         (run_dir / "run.json").write_text(json.dumps(run_info, indent=2, ensure_ascii=False, default=str))
-        models = load_models(settings, spec, needed, log)
+        resolved: dict[str, dict] = {}
+        models = load_models(settings, spec, needed, log, resolved)
+        run_info["provenance"] = {
+            **provenance.environment(settings),
+            "device": provenance.device_info(),
+            "model_files": provenance.model_files(settings, resolved),
+            "config_sha256": provenance.config_hashes(settings),
+            "data": provenance.data_fingerprint(settings, gts),
+        }
+        (run_dir / "run.json").write_text(json.dumps(run_info, indent=2, ensure_ascii=False, default=str))
+        if run_info["provenance"]["git"].get("dirty"):
+            log.warning("Uncommitted changes in the project - this run's code version is not fully recorded")
         try:
             infer(settings, rows, gts, models, cfg, run_dir, args.limit_frames, log)
         finally:
@@ -460,7 +476,8 @@ def main(argv: list[str] | None = None) -> int:
     frames = load_predictions(run_dir)
     result, ocr = compute_metrics(frames, cfg, run_dir)
     result = {"run_id": run_dir.name, "model": run_info.get("model"), "scored": datetime.now(timezone.utc)
-              .isoformat(timespec="seconds"), "eval_config": cfg,
+              .isoformat(timespec="seconds"), "scoring_environment": provenance.environment(settings),
+              "eval_config": cfg,
               "unlabeled_clips": run_info.get("unlabeled_clips", []), **result}
     (run_dir / "metrics.json").write_text(json.dumps(clean(result), indent=2, ensure_ascii=False))
     failures = find_failures(settings, frames, ocr, cfg, run_dir, log)

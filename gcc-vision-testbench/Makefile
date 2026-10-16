@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 ARGS ?=
 
 .PHONY: help venv install collect collect-faces collect-roboflow collect-youtube collect-local \
-        manifest prep extract dedupe preannotate install-models eval report test clean-logs
+        manifest prep extract dedupe preannotate install-models eval report compare test clean-logs
 
 help:
 	@echo "make install          create .venv and install requirements"
@@ -19,6 +19,7 @@ help:
 	@echo "make install-models   optional detector dependencies (ultralytics, insightface)"
 	@echo "make eval             run the default model (config/models.yaml) on labelled clips"
 	@echo "make report           HTML report + annotated video clips for the latest eval run"
+	@echo "make compare ARGS='RUN_A RUN_B'   what differed between two runs, and the metric changes"
 	@echo "make test             run unit tests"
 	@echo "Pass extra flags with ARGS, e.g. make collect-youtube ARGS='--dry-run --country ksa'"
 
@@ -66,6 +67,9 @@ eval:
 
 report:
 	$(PY) scripts/eval/build_report.py $(ARGS)
+
+compare:
+	$(PY) scripts/eval/compare_runs.py $(ARGS)
 
 test:
 	$(PY) -m pytest -q

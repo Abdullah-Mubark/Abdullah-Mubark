@@ -273,3 +273,41 @@ def test_clip_legend_fits_narrow_frames(cfg_dir):
         size = ann.legend_size(draw, width, fs)
         assert size <= fs and ann._legend_width(draw, size) <= width - 16
     assert ann.legend_size(draw, 1920, 30) == 30  # wide frames keep the full size
+
+
+# ---------------------------------------------------------------- provenance
+def test_provenance_and_compare(cfg_dir, eval_setup, tmp_path, capsys):
+    import hashlib
+    from gccvt.eval import compare
+    weights = tmp_path / "models/plate.bin"
+    weights.parent.mkdir(parents=True)
+    weights.write_bytes(b"weights-v1")
+    edit_yaml(cfg_dir / "models.yaml", lambda c: c["models"]["fake"]["plate_detector"].update(
+        params={"weights": str(weights)}))
+    assert runner.main(["--config-dir", str(cfg_dir), "--run-id", "a"]) == 0
+    run = json.loads((eval_setup / "results/a/run.json").read_text())
+    prov = run["provenance"]
+    assert prov["python"] and "numpy" in prov["packages"] and prov["ffmpeg"].startswith("ffmpeg version")
+    assert prov["model_files"]["plate_detector.weights"]["sha256"] == hashlib.sha256(b"weights-v1").hexdigest()
+    assert set(prov["config_sha256"]) >= {"settings.yaml", "eval.yaml", "models.yaml"}
+    assert prov["data"]["frames"] == 8 and len(prov["data"]["sha256"]) == 64
+    assert "git" in prov and "scoring_environment" in json.loads((eval_setup / "results/a/metrics.json").read_text())
+
+    # Same everything -> no setup differences, zero metric deltas
+    assert runner.main(["--config-dir", str(cfg_dir), "--run-id", "b"]) == 0
+    capsys.readouterr()
+    assert compare.main(["--config-dir", str(cfg_dir), "a", "b"]) == 0
+    out = capsys.readouterr().out
+    assert "identical code, packages, model files, config and data" in out
+    assert "(+0.00 pts)" in out
+
+    # New weights + a corrected label -> both show up
+    weights.write_bytes(b"weights-v2")
+    xml = eval_setup / "annotations/plate-ksa-day-clip_0001/gt/annotations.xml"
+    xml.write_text(xml.read_text().replace("5678 ABJ", "5678 ABD"))
+    assert runner.main(["--config-dir", str(cfg_dir), "--run-id", "c"]) == 0
+    diffs = {k for k, _, _ in compare.setup_diff(*(json.loads((eval_setup / f"results/{r}/run.json").read_text())
+                                                    for r in ("a", "c")))}
+    assert "provenance.model_files.plate_detector.weights.sha256" in diffs
+    assert "provenance.data.sha256" in diffs
+    assert "provenance.config_sha256.models.yaml" not in diffs

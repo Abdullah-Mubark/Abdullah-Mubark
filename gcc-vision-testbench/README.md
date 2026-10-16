@@ -243,7 +243,7 @@ YOLO ground truth gives detection metrics only, because it has nowhere to store 
 
 ### Output: `data/results/{run_id}/`
 
-- `run.json`: model and settings snapshot.
+- `run.json`: model and settings snapshot, plus provenance (see Reproducibility).
 - `predictions.jsonl`: per frame, the ground truth, detections and plate reads, with raw model
   text.
 - `embeddings.npz`: face embeddings for the recognition protocol.
@@ -251,6 +251,37 @@ YOLO ground truth gives detection metrics only, because it has nowhere to store 
 - `failures.json` + `failures/*.jpg`: the worst missed detections (largest first), the
   highest-scoring false positives, and plate misreads (highest CER first), each with a crop.
   Ground-truth boxes are outlined in red, false positives in orange.
+
+### Reproducibility
+
+Each run's `run.json` records its provenance:
+
+| Field | What it records |
+|---|---|
+| `git` | the code commit, and whether there were uncommitted changes (eval logs a warning if so) |
+| Environment | Python, platform, key package versions, ffmpeg version |
+| `device` | CUDA / onnxruntime providers, if loaded |
+| `model_files` | sha256 of every model file passed to an adapter |
+| `config_sha256` | sha256 of each config file |
+| `data` | a fingerprint of the evaluation set: every labelled frame plus its ground truth |
+
+`metrics.json` adds the environment that did the scoring, because `--rescore` can run on newer
+code. To see what differed between two runs and how the metrics moved:
+
+```bash
+make compare ARGS="baseline_20261015-120000 baseline_20261016-090000"
+```
+
+Collection itself isn't reproducible:
+- "latest" Roboflow versions change;
+- YouTube videos can disappear or be re-encoded.
+
+For stable comparisons:
+- pin Roboflow versions (`…/dataset/<N>`);
+- keep `data/` instead of re-downloading;
+- freeze packages (`pip freeze > requirements.lock`);
+- evaluate on CPU, or accept tiny GPU differences;
+- reuse predictions with `--rescore`.
 
 Models are defined in `config/models.yaml`. Each one has up to four roles: `plate_detector`,
 `plate_reader`, `face_detector`, `face_recognizer`. A role is an adapter plus its params, and

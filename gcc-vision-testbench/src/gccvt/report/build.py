@@ -247,8 +247,18 @@ def failures_section(f: dict, failure_clips: dict[str, dict]) -> str:
 
 def config_section(m: dict, run: dict) -> str:
     snap = {"model": run.get("model_spec"), "eval": m.get("eval_config")}
-    return (f'<section><details><summary>Model and evaluation settings</summary><pre>'
-            f'{escape(json.dumps(snap, indent=2, ensure_ascii=False, default=str))}</pre></details></section>')
+    prov = {"run": run.get("provenance"), "scoring": m.get("scoring_environment")}
+    git = (run.get("provenance") or {}).get("git") or {}
+    note = ""
+    if git.get("commit"):
+        note = (f'<p class="sub">Code {escape(git["commit"][:10])}'
+                f'{" + uncommitted changes" if git.get("dirty") else ""} · data fingerprint '
+                f'{escape(str(((run.get("provenance") or {}).get("data") or {}).get("sha256", ""))[:12])}</p>')
+    return (f'<section><h2>Reproducibility</h2>{note}'
+            f'<details><summary>Model and evaluation settings</summary><pre>'
+            f'{escape(json.dumps(snap, indent=2, ensure_ascii=False, default=str))}</pre></details>'
+            f'<details><summary>Provenance (code, packages, model files, data)</summary><pre>'
+            f'{escape(json.dumps(prov, indent=2, ensure_ascii=False, default=str))}</pre></details></section>')
 
 
 # ---------------------------------------------------------------- page
