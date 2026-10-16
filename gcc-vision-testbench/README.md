@@ -157,6 +157,22 @@ Dedupe is **off for ChokePoint** by default (`dedupe.overrides`). With a fixed c
 faces, a whole-frame hash barely changes when a person walks past, so it would drop real frames.
 Turn it on or off per source or per task in the same place.
 
+### Face clips as MP4
+
+ChokePoint comes as JPEG frame sequences. To get playable MP4 videos (for viewing, or for a
+model that only takes video):
+
+```bash
+make face-clips                       # every image sequence -> data/faces/clips/{clip_id}.mp4
+make face-clips ARGS="--clip face-chokepoint-P1E_S1__P1E_S1_C1 --force"
+```
+
+Clips keep the native resolution and frame rate (`fps` in `config/chokepoint.yaml`). Each one
+has a `{clip_id}.csv` that maps video frame numbers to the original image names, because the
+ChokePoint ground truth refers to images by name. Evaluation still reads the image sequences, so
+the MP4s are not added to the manifest. `make clean-data ARGS="faces"` removes them with their
+sequences.
+
 ### Pre-annotation (optional)
 
 Runs detectors over the kept frames and writes draft labels for correction in CVAT to
