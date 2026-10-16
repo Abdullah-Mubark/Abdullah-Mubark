@@ -42,7 +42,12 @@ network:
 video:                  # output encoding for YouTube clips (and local "transcode" mode)
   target_height: 2160   # 4K: plates are ~2x wider in pixels than at 1080p
   allow_upscale: false  # if false, sources below target_height keep their resolution (logged)
-  codec: libx264
-  crf: 18
-  preset: veryfast       # x264 speed: veryfast encodes 4K ~2-3x faster than medium, files ~25% bigger
+  # HEVC CRF 28 at <=30 fps is ~4-5x smaller than H.264 CRF 18 with plates equally readable (checked on
+  # day and night 4K clips, near and far plates). Not AV1: common OpenCV builds can't decode it.
+  # To go back: codec libx264, crf 18, preset veryfast, max_fps null. Re-encode existing clips with
+  # make recompress.
+  codec: libx265
+  crf: 28
+  preset: fast           # x265 speed: ~2 min per 4K minute on 16 cores; medium is slower and no smaller
+  max_fps: 30            # 60 fps sources are halved (eval samples at 2 fps); null keeps the source rate
   keep_audio: false

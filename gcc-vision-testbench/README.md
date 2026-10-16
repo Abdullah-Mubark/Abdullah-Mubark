@@ -99,13 +99,17 @@ sources:
 - **`download_mode: section`** (default) asks yt-dlp for just the segment.
 - **`download_mode: full`** downloads the whole video once to `data/raw/youtube/full/` and reuses
   it for every segment. Use it when you cut many clips from one video.
-- **Encoding.** ffmpeg re-encodes each clip to H.264 MP4 at `video.target_height` (default 2160,
-  i.e. 4K: a plate is about twice as many pixels wide as at 1080p). The yt-dlp `format` in
+- **Encoding.** ffmpeg re-encodes each clip to MP4 at `video.target_height` (default 2160, i.e. 4K:
+  a plate is about twice as many pixels wide as at 1080p). The yt-dlp `format` in
   `youtube_sources.yaml` caps the download at the same height; keep the two in step.
+  - Size: the default is HEVC (`codec: libx265`, `crf: 28`) capped at `max_fps: 30`. On day and
+    night 4K test clips that is ~4-5x smaller than H.264 CRF 18 (about 1 GB instead of 5 GB for
+    the 26 default segments) with near and far plates equally readable. AV1 would be smaller still,
+    but common OpenCV builds can't decode it. After changing these settings, `make recompress`
+    re-encodes the clips you already have, in place (same clip ids; `--dry-run` lists them first).
   - Speed: `defaults.jobs` (default 3, or `--jobs N`) segments run at once, so one downloads while
-    another encodes. Clip numbers are still assigned in config order. `video.preset: veryfast`
-    encodes 4K about 2-3x faster than `medium` for ~25% bigger files; use `medium` or `slow`
-    if disk matters more than time.
+    another encodes. Clip numbers are still assigned in config order. x265 `preset: fast` takes
+    about 2 minutes per 4K minute on 16 cores.
   - With `video.allow_upscale: false`, lower-resolution sources keep their resolution, and the
     script logs a warning.
   - Audio is dropped unless `video.keep_audio: true`.
