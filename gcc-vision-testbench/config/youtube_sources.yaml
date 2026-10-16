@@ -11,19 +11,110 @@ defaults:
   cookies_from_browser: null # e.g. "chrome" if YouTube asks you to sign in
   rate_limit: null           # e.g. "5M"
 
+# Real GCC driving videos (found by title/description search). The segment times are a starting
+# point, NOT verified: each skips the first ~2 minutes of intro and takes 60 s. Preview each video and
+# move the segment to a stretch with traffic and readable plates (behind cars, at lights, in queues).
+# Day/night comes from the video title. A rear-facing camera (Dubai, below) shows front plates.
 sources:
-  # Placeholders - replace with real videos.
-  - url: "https://www.youtube.com/watch?v=VIDEO_ID_1"
+  # ---- Saudi Arabia ----------------------------------------------------------------------------
+  - url: "https://www.youtube.com/watch?v=wo2Q5bELiC0"
     country: ksa
     condition: day
-    start: "00:01:30"
-    end: "00:02:15"
-    enabled: false
-    notes: "Riyadh dashcam, highway"
+    start: "02:00"
+    end: "03:00"
+    notes: "Riyadh 4K Driving Tour"
+  - url: "https://www.youtube.com/watch?v=sS2UegfCB6o"
+    country: ksa
+    condition: day
+    start: "02:00"
+    end: "03:00"
+    notes: "4K Drive Riyadh"
+  - url: "https://www.youtube.com/watch?v=PNDPhXbtnp8"
+    country: ksa
+    condition: night
+    start: "02:00"
+    end: "03:00"
+    notes: "Riyadh Night Driving 4K POV (~32 min, no narration)"
+  - url: "https://www.youtube.com/watch?v=A1sXfDpPUkE"
+    country: ksa
+    condition: night
+    start: "02:00"
+    end: "03:00"
+    notes: "[4K] Riyadh City Drive at Night (Dirab Rd, King Fahd Rd - chapter list in description)"
 
-  - url: "https://www.youtube.com/watch?v=VIDEO_ID_2"
+  # ---- UAE -------------------------------------------------------------------------------------
+  - url: "https://www.youtube.com/watch?v=EMyPq0cFKo0"
     country: uae
-    enabled: false
+    condition: day
+    start: "02:00"
+    end: "03:00"
+    notes: "4K dashcam, Dubai downtown / Sheikh Zayed Rd (2019)"
+  - url: "https://www.youtube.com/watch?v=QsiNVMgPLO4"
+    country: uae
+    condition: day
+    start: "02:00"
+    end: "03:00"
+    notes: "Rear-view drive on Sheikh Zayed Rd - shows FRONT plates of following cars"
+  - url: "https://www.youtube.com/watch?v=1c-UaSwQjsU"
+    country: uae
+    condition: night
     segments:
-      - {start: "10:00", end: "10:45", condition: night}
-      - {start: 1520, end: 1580, condition: night}
+      - {start: "01:00", end: "02:00"}   # chapter 00:33 Sheikh Zayed Rd towards Abu Dhabi
+      - {start: "22:30", end: "23:30"}   # chapter 22:14 Sheikh Zayed Rd towards Sharjah
+    notes: "Sheikh Zayed Road 4K late-night drive, full tour"
+
+  # ---- Qatar -----------------------------------------------------------------------------------
+  - url: "https://www.youtube.com/watch?v=O72aSE8C2bk"
+    country: qatar
+    condition: day
+    start: "02:00"
+    end: "03:00"
+    notes: "Doha 4K driving tour: downtown, business district, Corniche"
+  - url: "https://www.youtube.com/watch?v=rVjuZrf73yU"
+    country: qatar
+    condition: night
+    start: "02:00"
+    end: "03:00"
+    notes: "Night Driving in Doha 4K"
+
+  # ---- Kuwait ----------------------------------------------------------------------------------
+  - url: "https://www.youtube.com/watch?v=WbUPHeIBC9k"
+    country: kuwait
+    condition: day
+    start: "02:00"
+    end: "03:00"
+    notes: "Kuwait City 2024 driving downtown 4K"
+  - url: "https://www.youtube.com/watch?v=jcdzKbvS2yk"
+    country: kuwait
+    condition: night
+    start: "02:00"
+    end: "03:00"
+    notes: "Kuwait City 4K night drive (Jahra St, Sharq, Dasman)"
+
+  # ---- Oman ------------------------------------------------------------------------------------
+  - url: "https://www.youtube.com/watch?v=Rue7YeacNgs"
+    country: oman
+    condition: day
+    start: "02:00"
+    end: "03:00"
+    notes: "Muscat: Rusayl roundabout to Al Ghubrah, Sultan Qaboos St"
+  - url: "https://www.youtube.com/watch?v=Ve0EAomuxro"
+    country: oman
+    condition: night
+    start: "02:00"
+    end: "03:00"
+    notes: "4K night drive Sohar to Muscat (highway)"
+
+  # ---- Bahrain ---------------------------------------------------------------------------------
+  - url: "https://www.youtube.com/watch?v=9ZV-XJ9eAZk"
+    country: bahrain
+    condition: day
+    start: "02:00"
+    end: "03:00"
+    notes: "Bahrain 4K - driving downtown Manama"
+  - url: "https://www.youtube.com/watch?v=RpfqUJ8lacs"
+    country: bahrain
+    condition: night
+    start: "02:00"
+    end: "03:00"
+    notes: "King Faisal Corniche Road - driving at night"

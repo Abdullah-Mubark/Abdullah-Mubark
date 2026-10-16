@@ -52,21 +52,31 @@ to its ground-truth XML. The full dataset is large, so restrict `files.include` 
 
 ### Roboflow Universe
 
-Add datasets to `config/roboflow_datasets.yaml` using any of these forms:
+Add datasets to `config/roboflow_datasets.yaml` using any of these forms. Leave the version out to
+get the latest one:
 
 ```yaml
 datasets:
-  - url: "https://universe.roboflow.com/<workspace>/<project>/dataset/<version>"
+  - url: "https://universe.roboflow.com/<workspace>/<project>"            # latest version
     country: ksa
-  - slug: "<workspace>/<project>/<version>"
+  - url: "https://universe.roboflow.com/<workspace>/<project>/dataset/3"  # pinned version
     country: uae
+  - slug: "<workspace>/<project>[/<version>]"
+    country: qatar
 ```
+
+The shipped config already lists public Saudi and UAE plate datasets found on Universe. No usable
+Qatar, Kuwait, Oman or Bahrain datasets were found; the config names the workspaces to look in.
 
 Exports are in YOLOv8 format (`format: yolov8`). If Roboflow still has to generate an export, the
 script polls until it is ready. Image datasets are listed in the manifest as one row each
 (`frame_count` = number of images).
 
 ### YouTube
+
+The shipped config lists 15 real day and night driving videos, covering all six countries. Their
+segment times are placeholders (02:00–03:00): preview each video and move the segment to a stretch
+where plates are readable.
 
 ```yaml
 sources:

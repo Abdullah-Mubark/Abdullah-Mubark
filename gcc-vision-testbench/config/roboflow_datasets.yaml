@@ -1,22 +1,46 @@
 # Plate datasets from Roboflow Universe. The API key comes from ROBOFLOW_API_KEY (.env).
 #
 # Each entry needs a country plus one of:
-#   slug: "workspace/project/version"
-#   url:  "https://universe.roboflow.com/<workspace>/<project>/dataset/<version>"
-#   workspace / project / version as separate keys
+#   url:  "https://universe.roboflow.com/<workspace>/<project>[/dataset/<version>]"
+#   slug: "workspace/project[/version]"
+#   workspace / project [/ version] as separate keys
+# Leave the version out to download the project's latest version.
 #
-# Find datasets at https://universe.roboflow.com (search e.g. "saudi license plate").
-# The entries below are placeholders: replace them and set enabled: true.
+# Before relying on a dataset, open its page and check the licence, the classes and a few images.
+# Evaluation maps every class to "plate" (roboflow.class_map in config/eval.yaml); a dataset that
+# labels characters or plate parts instead of whole plates needs a class_map there, or should stay off.
 api_url: "https://api.roboflow.com"
 format: yolov8
 export_poll_s: 10        # export generation can take a while on first request
 export_timeout_s: 900
 
 datasets:
-  - slug: "your-workspace/saudi-plates/1"
+  # ---- Saudi Arabia ----------------------------------------------------------------------------
+  - url: "https://universe.roboflow.com/cars-o2wwf/saudi-licence-plates"
     country: ksa
-    enabled: false
-    notes: "replace with a real Universe dataset"
-  - url: "https://universe.roboflow.com/your-workspace/uae-plates/dataset/1"
+    notes: "Saudi Licence Plates (by Cars) - ~4.5k images, CC BY 4.0 per its Universe listing"
+  - url: "https://universe.roboflow.com/saudi-licence-plate/saudi-plates-dt"
+    country: ksa
+    notes: "saudi-plates-dt - ~1.3k images, single class license_plate per its listing"
+  - url: "https://universe.roboflow.com/nawaf-barboud/saudi-plates/dataset/3"
+    country: ksa
+    notes: "saudi plates (Nawaf Barboud) v3 - small (~38 images), CC0 per its listing"
+
+  # ---- UAE -------------------------------------------------------------------------------------
+  - url: "https://universe.roboflow.com/zara-hara/car-plate-k6xij"
+    country: uae
+    notes: "car plate (Zara hara) - ~11.8k images, CC BY 4.0; classes are plate styles (e.g. old_DUBAI)"
+  - url: "https://universe.roboflow.com/gino-a5eel/abudhabi"
     country: uae
     enabled: false
+    notes: >-
+      Off: classes are 'Abu Dhabi', 'Plate Code', 'Plate Number' (plate parts, not whole plates).
+      Enable only with a matching roboflow.class_map in config/eval.yaml.
+
+  # ---- Qatar / Kuwait / Oman / Bahrain ---------------------------------------------------------
+  # No public whole-plate datasets with a confirmed project slug were found. Candidates to open and
+  # add here once you have the project URL:
+  #   Qatar:  workspace https://universe.roboflow.com/aipt-kgzea  ("licenses plates qatar",
+  #           "KSA_UAE_QUATAR" ~2.2k images, "uae_quatar_saudiarabia")
+  #   Kuwait, Oman (+ UAE): workspace https://universe.roboflow.com/aic-e4nba  ("Kuwait" ~89 images, "Oman")
+  #   Bahrain: none found - use YouTube / your own footage
