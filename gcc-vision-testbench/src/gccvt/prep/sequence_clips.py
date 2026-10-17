@@ -47,6 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     settings, log = init("sequence_clips", args)
     out_dir = clips_dir(settings)
+    video_cfg = {**settings.section("video"), **(settings.data.get("face_clips") or {})}
     rows = [r for r in select_clips(settings, args) if clip_source(settings, r).is_dir()]
     if not rows:
         log.info("No image-sequence clips in the manifest (run make collect-faces first).")
@@ -72,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         log.info("[%d/%d] %s: %d frames", i, len(rows), row["clip_id"], len(images))
         out_dir.mkdir(parents=True, exist_ok=True)
         try:
-            encode_sequence(images, dst, fps, settings.section("video"))
+            encode_sequence(images, dst, fps, video_cfg)
         except GccvtError as e:
             log.error("%s: %s", row["clip_id"], e)
             failed += 1

@@ -178,7 +178,9 @@ make face-clips                       # every image sequence -> data/faces/clips
 make face-clips ARGS="--clip face-chokepoint-P1E_S1__P1E_S1_C1 --force"
 ```
 
-Clips keep the native resolution and frame rate (`fps` in `config/chokepoint.yaml`). Each one
+Clips keep the native resolution and frame rate (`fps` in `config/chokepoint.yaml`). They use the
+`video:` codec with the overrides under `face_clips:` in `config/settings.yaml`: faces are small, so
+they get CRF 20 instead of the plates' CRF 28, which visibly smears facial detail. Each one
 has a `{clip_id}.csv` that maps video frame numbers to the original image names, because the
 ChokePoint ground truth refers to images by name. Evaluation still reads the image sequences, so
 the MP4s are not added to the manifest. `make clean-data ARGS="faces"` removes them with their
