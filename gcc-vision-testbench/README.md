@@ -188,6 +188,25 @@ ChokePoint ground truth refers to images by name. Evaluation still reads the ima
 the MP4s are not added to the manifest. `make clean-data ARGS="faces"` removes them with their
 sequences.
 
+### Training a plate detector
+
+No official GCC plate weights exist, so train one on the Roboflow datasets you collected:
+
+```bash
+make install-models                  # ultralytics (+ PyTorch; on a CPU-only machine install the CPU
+                                     # build first: pip install torch torchvision --index-url
+                                     # https://download.pytorch.org/whl/cpu)
+make train-plate                     # -> models/plate_yolov8.pt (+ .json with settings and val metrics)
+make train-plate ARGS="--dry-run"    # only build data/train/plate/ and print the counts
+```
+
+It fine-tunes `yolov8n` on each dataset's train/valid splits, never on the split `make eval`
+scores on, with classes mapped through `roboflow.class_map` in `config/eval.yaml` (whole plates
+only). On a CPU, training takes about 0.22 s per image per epoch, so `config/train.yaml` samples
+at most 1000 images per dataset for 15 epochs (≤ ~3 h, stops early when it stops improving).
+That's enough for draft labels; raise both on a GPU (`device: "0"`). The weights are YOLOv8,
+so AGPL-3.0, and inherit the licences of the Roboflow datasets.
+
 ### Pre-annotation (optional)
 
 Runs detectors over the kept frames and writes draft labels for correction in CVAT to
@@ -203,8 +222,8 @@ To turn it on:
 
 1. Run `make install-models`.
 2. Set `enabled: true` on a detector in `config/prep.yaml`.
-3. For plates, point `weights:` at a YOLOv8 plate model, for example one trained on your
-   Roboflow datasets. No official GCC plate weights exist.
+3. For plates, `weights:` already points at `models/plate_yolov8.pt` from `make train-plate`.
+   Detection runs at `imgsz: 1280` so plates in 4K frames aren't shrunk to a few pixels.
 4. For faces, use `adapter: insightface` (RetinaFace family) or `adapter: yolov8` with
    YOLOv8-face weights.
 

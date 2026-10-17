@@ -35,8 +35,9 @@ preannotate:
       tasks: [plate]
       label: plate
       params:
-        weights: models/plate_yolov8.pt   # your plate model (no official GCC plate weights exist)
+        weights: models/plate_yolov8.pt   # make train-plate (no official GCC plate weights exist)
         conf: 0.25
+        imgsz: 1280                       # 4K frames: at the default 640 a plate shrinks to ~25 px
         keep_classes: null                # model class ids to keep; null = all
     face:
       enabled: false

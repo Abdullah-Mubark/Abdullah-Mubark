@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 ARGS ?=
 
 .PHONY: help venv install collect collect-faces collect-roboflow collect-youtube collect-local \
-        manifest fetch pack recompress prep extract dedupe preannotate face-clips install-models eval report compare test clean-data clean-logs
+        manifest fetch pack recompress prep extract dedupe preannotate face-clips train-plate install-models eval report compare test clean-data clean-logs
 
 help:
 	@echo "make install          create .venv and install requirements"
@@ -21,6 +21,7 @@ help:
 	@echo "make extract / dedupe / preannotate   run one prep step"
 	@echo "make face-clips       encode image-sequence clips (ChokePoint) as MP4 in data/faces/clips/"
 	@echo "make install-models   optional detector dependencies (ultralytics, insightface)"
+	@echo "make train-plate      train a YOLOv8 plate detector on the Roboflow datasets -> models/plate_yolov8.pt"
 	@echo "make eval             run the default model (config/models.yaml) on labelled clips"
 	@echo "make report           HTML report + annotated video clips for the latest eval run"
 	@echo "make compare ARGS='RUN_A RUN_B'   what differed between two runs, and the metric changes"
@@ -78,6 +79,9 @@ preannotate:
 
 face-clips:
 	$(PY) scripts/prep/sequence_clips.py $(ARGS)
+
+train-plate:
+	$(PY) scripts/train_plate.py $(ARGS)
 
 eval:
 	$(PY) scripts/eval/run_eval.py $(ARGS)
