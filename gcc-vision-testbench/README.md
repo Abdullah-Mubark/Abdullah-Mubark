@@ -418,7 +418,7 @@ Videos and images don't need copying: the configs pin every YouTube segment, the
 subset and every Roboflow version, so the other machine downloads the same data.
 
 ```bash
-# this machine: pack what can't be downloaded again (manifest, gt labels, results; no videos)
+# this machine: pack what can't be downloaded again (manifest, gt labels, results, models/; no videos)
 make pack                      # -> gccvt-transfer.tgz, usually a few MB
 
 # other machine
@@ -428,8 +428,9 @@ cd Abdullah-Mubark/gcc-vision-testbench && make install
 make fetch
 ```
 
-`make fetch` unpacks `gccvt-transfer.tgz` first (then renames it `*.unpacked`, so re-runs don't
-overwrite the manifest), then collects the YouTube clips, ChokePoint and the Roboflow datasets
+`make fetch` unpacks `gccvt-transfer.tgz` first (data into `data/`, model weights such as the plate
+detector from `make train-plate` into `models/`; then it renames the bundle `*.unpacked`, so re-runs
+don't overwrite the manifest), then collects the YouTube clips, ChokePoint and the Roboflow datasets
 (skipped without an API key) and encodes the face MP4s. A failed step doesn't stop the others;
 the summary lists what to re-run, and a re-run skips everything already done. Without a bundle it
 simply fetches everything fresh. Then `make prep` and `make report ARGS="--run <RUN_ID>"`

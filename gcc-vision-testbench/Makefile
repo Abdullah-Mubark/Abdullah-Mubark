@@ -15,7 +15,7 @@ help:
 	@echo "make collect-local    your own footage (config/local_sources.yaml)"
 	@echo "make manifest         summary of data/manifest.csv"
 	@echo "make fetch            new machine: all data in one go (unpacks gccvt-transfer.tgz first if present)"
-	@echo "make pack             gccvt-transfer.tgz: manifest, gt labels, results (no videos) for make fetch"
+	@echo "make pack             gccvt-transfer.tgz: manifest, gt labels, results, models/ (no videos) for make fetch"
 	@echo "make recompress       re-encode existing YouTube clips with the current video settings (smaller)"
 	@echo "make prep             extract frames, dedupe, pre-annotate (if detectors enabled)"
 	@echo "make extract / dedupe / preannotate   run one prep step"
