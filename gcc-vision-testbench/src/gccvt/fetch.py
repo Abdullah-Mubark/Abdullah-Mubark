@@ -1,6 +1,7 @@
 """Set up the data on a new machine in one command, or pack what can't be downloaded again.
 
-  make pack    -> gccvt-transfer.tgz: manifest.csv, your gt/ labels and eval results (no videos)
+  make pack    -> gccvt-transfer.tgz: manifest.csv, your gt/ labels, eval results (no videos) and
+                  models/ (e.g. the plate detector from make train-plate)
   make fetch   -> unpacks gccvt-transfer.tgz if present, then collects YouTube clips, ChokePoint and
                   Roboflow (skipped without ROBOFLOW_API_KEY) and encodes the face MP4s
 
@@ -13,7 +14,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import tarfile
+import tempfile
 from pathlib import Path
 from typing import Callable
 
@@ -25,6 +28,7 @@ from .errors import GccvtError
 from .prep import sequence_clips
 
 DEFAULT_BUNDLE = "gccvt-transfer.tgz"
+MODELS = "models"   # bundle prefix for files from the project's models/ folder (not under data/)
 
 
 def pack_members(data_root: Path) -> list[Path]:
@@ -37,15 +41,24 @@ def pack_members(data_root: Path) -> list[Path]:
     return out
 
 
+def model_members(models_dir: Path) -> list[Path]:
+    """Model weights and their cards (models/ is git-ignored and retraining takes hours)."""
+    return sorted(p for p in models_dir.rglob("*") if p.is_file()) if models_dir.is_dir() else []
+
+
 def pack(settings: Settings, bundle: Path, log) -> int:
-    root = settings.path("data_root")
-    members = pack_members(root)
+    root, models_dir = settings.path("data_root"), settings.path("models")
+    members = [(p, p.relative_to(root).as_posix()) for p in pack_members(root)]
+    members += [(p, f"{MODELS}/{p.relative_to(models_dir).as_posix()}") for p in model_members(models_dir)]
     if not members:
-        log.error("Nothing to pack under %s (no manifest, labels or results yet)", root)
+        log.error("Nothing to pack under %s (no manifest, labels, results or models yet)", root)
         return 1
     with tarfile.open(bundle, "w:gz") as tf:
-        for p in members:
-            tf.add(p, arcname=p.relative_to(root).as_posix())
+        for p, arcname in members:
+            tf.add(p, arcname=arcname)
+    n_models = sum(a.startswith(MODELS + "/") for _, a in members)
+    if n_models:
+        log.info("Including %d file(s) from %s", n_models, settings.rel(models_dir))
     size = bundle.stat().st_size / 2**20
     log.info("Packed %d files (%.1f MiB) -> %s", len(members), size, bundle)
     log.info("Copy it to the other machine's gcc-vision-testbench/ folder and run: make fetch")
@@ -53,9 +66,17 @@ def pack(settings: Settings, bundle: Path, log) -> int:
 
 
 def unpack(settings: Settings, bundle: Path, log) -> None:
-    """Unpack into the data folder, then rename the bundle so re-runs don't overwrite the manifest."""
-    root = settings.path("data_root")
-    archives.extract(bundle, root)  # refuses absolute paths, '..' and links outside root
+    """Unpack data into the data folder and models/ into the models folder, then rename the bundle
+    so re-runs don't overwrite the manifest."""
+    root, models_dir = settings.path("data_root"), settings.path("models")
+    root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=root) as tmp:
+        archives.extract(bundle, Path(tmp))  # refuses absolute paths, '..' and links outside tmp
+        if (Path(tmp) / MODELS).is_dir():
+            shutil.copytree(Path(tmp) / MODELS, models_dir, dirs_exist_ok=True)
+            shutil.rmtree(Path(tmp) / MODELS)
+            log.info("Models -> %s", settings.rel(models_dir))
+        shutil.copytree(tmp, root, dirs_exist_ok=True)
     done = bundle.with_name(bundle.name + ".unpacked")
     bundle.replace(done)
     log.info("Unpacked %s into %s (renamed to %s)", bundle.name, settings.rel(root), done.name)
