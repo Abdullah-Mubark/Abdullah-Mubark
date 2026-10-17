@@ -80,10 +80,15 @@ def test_chokepoint_nested_archives_and_crops(server, cfg_dir, tmp_path):
     assert chokepoint.main(["--config-dir", str(cfg_dir)]) == 0
     faces = tmp_path / "data/faces/chokepoint"
     assert len(list((faces / "P1E_S1_C1").glob("*.jpg"))) == 4                 # inner archive unpacked
-    assert (faces / "P1E_S1_C1/0006/00000001.jpg").is_file()                   # crops kept
+    assert "/files/P1E.tar.xz" not in server.hits                              # crops not fetched by default
+
+    edit_yaml(cfg_dir / "chokepoint.yaml", lambda c: c["files"].update(include=["*"]))   # opt in to crops
+    assert chokepoint.main(["--config-dir", str(cfg_dir)]) == 0
+    assert (faces / "P1E_S1_C1/0006/00000001.jpg").is_file()                   # crops kept...
     assert not list(faces.glob("*.tar.xz"))                                    # inner archive removed
     rows = {cid: r for cid, r in _manifest(tmp_path).rows.items() if r["source"] == "chokepoint"}
     assert list(rows) == ["face-chokepoint-P1E_S1_C1"] and rows["face-chokepoint-P1E_S1_C1"]["frame_count"] == "4"
+    # ...but not registered as clips (and the old crop row is gone)
 
 
 # ---------------------------------------------------------------- Roboflow

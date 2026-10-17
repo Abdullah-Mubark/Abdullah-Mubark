@@ -42,14 +42,16 @@ Failures are retried with exponential backoff; a failed item is reported and the
 
 ```bash
 python scripts/collect/download_chokepoint.py --list            # see files and sizes first
-python scripts/collect/download_chokepoint.py --only "P1E*" "groundtruth*"
+python scripts/collect/download_chokepoint.py --only "P1E_S*" "groundtruth*"
 ```
 
 Files are fetched one at a time with HTTP Range resume, checked against Zenodo's md5 checksums,
 and extracted. Each session archive (`P1E_S1.tar.xz`) holds one archive per camera, which is
 unpacked too. Each camera sequence (a folder of JPEG frames, e.g. `P1E_S1_C1/`) becomes one row in
-the manifest, linked to its ground-truth XML. The portal archives (`P1E.tar.xz`) add 96×96 face
-crops in per-person subfolders (`P1E_S1_C1/0006/`); they are kept but not registered as clips. By default only portal 1, people entering (`P1E*`, ~1.6 GB) and the ground truth are fetched; the
+the manifest, linked to its ground-truth XML. The portal archives (`P1E.tar.xz`) hold 96×96 face
+crops in per-person subfolders (`P1E_S1_C1/0006/`); nothing uses them, so they aren't fetched by
+default (and aren't registered as clips if you add them). By default only portal 1, people entering
+(the session archives `P1E_S*`, ~1.6 GB) and the ground truth are fetched; the
 full dataset is ~12 GB, so widen `files.include` in `config/chokepoint.yaml` only if you need it.
 `delete_archives_after_extract: true` saves space, and the archives won't be downloaded again.
 

@@ -4,10 +4,11 @@ zenodo:
   record_id: 815657
 
 files:
-  # fnmatch patterns on Zenodo file names. Default: everything.
-  # Portal 1, people entering (~1.6 GB, 12 camera sequences) + ground truth. The full dataset is
-  # ~12 GB: use ["*"] for everything, or add e.g. "P2E*" for portal 2.
-  include: ["P1E*", "groundtruth*"]
+  # fnmatch patterns on Zenodo file names.
+  # Default: portal 1, people entering: the 4 session archives (~1.6 GB, 12 camera sequences) + ground
+  # truth. "P1E_S*" rather than "P1E*" skips P1E.tar.xz, the 96x96 face crops (154 MB unpacked) that
+  # nothing uses. The full dataset is ~12 GB: use ["*"] for everything, or add e.g. "P2E_S*".
+  include: ["P1E_S*", "groundtruth*"]
   exclude: []
 
 extract: true                      # unpack archives into data/faces/chokepoint/
