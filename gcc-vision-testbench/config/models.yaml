@@ -10,7 +10,7 @@ models:
   baseline:
     plate_detector:
       adapter: yolov8
-      params: {weights: models/plate_yolov8.pt, conf: 0.05}
+      params: {weights: models/plate_yolov8.pt, conf: 0.05, imgsz: 1280}   # make train-plate
     # plate_reader:
     #   adapter: "my_ocr.adapter:MyPlateReader"
     #   params: {weights: models/plate_ocr.onnx}

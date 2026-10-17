@@ -1,0 +1,17 @@
+# make train-plate: YOLOv8 plate detector trained on the Roboflow datasets in the manifest.
+# Images come from each dataset's train/valid splits, never from the split `make eval` scores on.
+# Classes follow roboflow.class_map in eval.yaml (whole plates only).
+plate:
+  base_model: yolov8n.pt      # Ultralytics COCO-pretrained nano model (downloaded on first use; AGPL-3.0)
+  output: models/plate_yolov8.pt   # what config/prep.yaml and config/models.yaml point at
+  # CPU training is slow, so a balanced sample is used: at most this many images per dataset.
+  # (The UAE dataset alone has 10k training images.) Raise it, and epochs, if you have a GPU.
+  max_per_dataset: 1000      # ~3.1k images: ~12 min per epoch on a 16-core CPU (0.22 s/image)
+  max_val_per_dataset: 200
+  epochs: 15                  # <= ~3 h on CPU; good enough for draft labels you correct anyway
+  patience: 5                 # stop early when val mAP hasn't improved for this many epochs
+  imgsz: 640
+  batch: 16
+  workers: 4
+  device: cpu                 # "0" for the first CUDA GPU
+  seed: 0
