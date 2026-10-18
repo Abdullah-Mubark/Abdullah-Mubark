@@ -2,6 +2,9 @@
 
 extract:
   fps: 2                  # frames per second to keep (capped at the source fps)
+  fps_by_task:            # per-task rate, overrides fps (make extract ARGS="--fps N" overrides both)
+    plate: 0.5            # 30 frames per 60 s plate clip, ~780 for 26 clips: a labelling round, not 3,100
+                          # (faces stay at fps: ChokePoint ground truth is already there)
   image_format: jpg       # jpg | png
   jpeg_quality: 2         # ffmpeg -qscale:v, 2 (best) .. 31
   sequences: link         # image-sequence clips (ChokePoint): link (hard link, no extra space) | copy
@@ -30,13 +33,13 @@ preannotate:
     # adapter: a registered name (yolov8, insightface) or "package.module:ClassName".
     # Everything under `params` is passed to the adapter's load().
     plate:
-      enabled: false
+      enabled: true                       # needs models/plate_yolov8.pt (make train-plate)
       adapter: yolov8
       tasks: [plate]
       label: plate
       params:
         weights: models/plate_yolov8.pt   # make train-plate (no official GCC plate weights exist)
-        conf: 0.25
+        conf: 0.15                        # low on purpose: deleting a wrong draft box is quicker than drawing a missed one
         imgsz: 1280                       # 4K frames: at the default 640 a plate shrinks to ~25 px
         keep_classes: null                # model class ids to keep; null = all
     face:
