@@ -417,42 +417,113 @@ make clean-data ARGS="all --yes"                        # everything except your
   unless you add `--include-labelled`. Clip numbers are reused after a delete, so labels left
   behind for a deleted clip could end up attached to a different video.
 
-## Moving to another machine
+## Setting up a second machine
 
-Videos and images don't need copying: the configs pin every YouTube segment, the ChokePoint
-subset and every Roboflow version, so the other machine downloads the same data.
+Videos and images aren't copied: the configs pin every YouTube segment, the ChokePoint subset and
+every Roboflow version, so the second machine downloads the same data. Only what can't be
+downloaded again travels, in one small file.
+
+### 1. On the machine that has the data
 
 ```bash
-# this machine: pack what can't be downloaded again (manifest, gt labels, results, models/; no videos)
-make pack                      # -> gccvt-transfer.tgz, usually a few MB
+make pack          # -> gccvt-transfer.tgz (a few MB)
+```
 
-# other machine
+It holds `data/manifest.csv` (pins every `clip_id`), your corrected labels
+(`data/annotations/*/gt/`), the eval runs in `data/results/` (no videos) and everything in
+`models/` (e.g. `plate_yolov8.pt` from `make train-plate`). Run it again after training a model,
+correcting labels or running an eval, so the bundle is current. Move it by USB or your own
+network, not a public share: the eval failure crops show real faces and plates.
+
+### 2. On the second machine: prerequisites
+
+- git and Python 3.11+.
+- `ffmpeg` and `ffprobe` on the PATH, built with **libx265** (clips are HEVC). Check:
+  `ffmpeg -hide_banner -encoders | grep libx265` should print a line.
+- About 10 GB free disk (clips 1.3 GB, ChokePoint 1.7 GB, Roboflow 2.7 GB plus its zips).
+- Optional, for face evaluation: the Python development headers (`python3-devel` on
+  Fedora/AlmaLinux, `python3.12-dev` or similar on Ubuntu), because InsightFace compiles a small
+  extension.
+
+### 3. Get the code and install
+
+```bash
 git clone https://github.com/Abdullah-Mubark/Abdullah-Mubark.git
-cd Abdullah-Mubark/gcc-vision-testbench && make install
-# copy gccvt-transfer.tgz here; add ROBOFLOW_API_KEY to .env (optional)
+cd Abdullah-Mubark/gcc-vision-testbench
+make install                 # .venv + requirements, creates .env from .env.example
+```
+
+Put your Roboflow key in `.env` (`ROBOFLOW_API_KEY=...`); without it the Roboflow step is skipped.
+Copy `gccvt-transfer.tgz` into this `gcc-vision-testbench/` folder.
+
+### 4. Fetch everything
+
+```bash
 make fetch
 ```
 
-`make fetch` unpacks `gccvt-transfer.tgz` first (data into `data/`, model weights such as the plate
-detector from `make train-plate` into `models/`; then it renames the bundle `*.unpacked`, so re-runs
-don't overwrite the manifest), then collects the YouTube clips, ChokePoint and the Roboflow datasets
-(skipped without an API key) and encodes the face MP4s. A failed step doesn't stop the others;
-the summary lists what to re-run, and a re-run skips everything already done. Without a bundle it
-simply fetches everything fresh. Then `make prep` and `make report ARGS="--run <RUN_ID>"`
-re-render the annotated clips from the local videos.
+It runs these steps and prints a summary at the end:
 
-The manifest is unpacked **before** collecting. A segment or local file that it already lists
-gets the same `clip_id` again, whatever order the downloads finish in, so your labels and results
-still line up with the right clips. Re-encoded frames can differ by a few bytes between ffmpeg
-versions; the metrics are still comparable, but a run's data fingerprint will show the difference.
+1. Unpacks `gccvt-transfer.tgz`: data into `data/`, models into `models/`. Then it renames the
+   bundle to `gccvt-transfer.tgz.unpacked`, so re-runs don't overwrite the manifest. (Without a
+   bundle it fetches everything fresh, with new clip ids.)
+2. Downloads the 26 YouTube segments and encodes them to 4K HEVC (3 at a time).
+3. Downloads ChokePoint portal 1 entering (~1.5 GB) and unpacks the camera sequences.
+4. Downloads the Roboflow datasets (pinned versions).
+5. Encodes the 12 face MP4s.
 
-**Faster:** if both machines are on the same network or you have a USB drive, copying the
-finished clips is minutes instead of hours of downloading and encoding, and gives byte-identical
-data. Copy `data/plates/` and `data/faces/` along with the tarball above (YouTube clips stay
-internal: see DATA_NOTICE.md), then skip `make collect`:
+Expect 1.5-2.5 hours, mostly 4K encoding. A failed step doesn't stop the others; run
+`make fetch` again to retry, and everything already done is skipped.
+
+The manifest is unpacked **before** collecting, so each segment gets the same `clip_id` as on the
+first machine whatever order the downloads finish in, and your labels and results line up with
+the right clips.
+
+### 5. Check it worked
 
 ```bash
-rsync -a --info=progress2 data/plates data/faces data/manifest.csv OTHER_PC:gcc-vision-testbench/data/
+make manifest      # 42 rows: 26 YouTube clips, 12 ChokePoint sequences, 4 Roboflow (38 without a key)
+ls models          # plate_yolov8.pt + .json, if the bundle had them
+make test
+```
+
+### 6. Optional: models, frames and evaluation
+
+```bash
+# CPU-only machine: install the CPU build of PyTorch first (~200 MB instead of ~2.5 GB of CUDA)
+.venv/bin/pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+make install-models                   # ultralytics, insightface, onnxruntime
+
+make prep                             # frames (plates 0.5 fps, faces 2 fps) + draft plate labels
+make eval ARGS="--task face"          # face detection + recognition on ChokePoint
+make compare ARGS="baseline_20261017-052700 <new run id>"   # should match the first machine
+make clean-data ARGS="raw --yes"      # free ~2.6 GB of downloaded zips
+```
+
+Re-encoded frames can differ by a few bytes between ffmpeg versions; metrics stay comparable,
+but `make compare` will show a different data fingerprint.
+
+### Troubleshooting
+
+- **A YouTube step failed:** a video may have gone private or been removed (the summary and
+  `logs/download_youtube.log` say which). The other clips are unaffected; replace or disable that
+  source in `config/youtube_sources.yaml`.
+- **YouTube asks you to sign in:** set `defaults.cookies_from_browser: chrome` (or your browser)
+  in `config/youtube_sources.yaml`.
+- **`Unknown encoder 'libx265'`:** your ffmpeg lacks HEVC; install a full build (e.g. from RPM
+  Fusion, or a static build), then re-run `make fetch`.
+- **`make prep` warns "weights models/plate_yolov8.pt not found":** the bundle had no model.
+  Copy `models/` from the first machine or run `make train-plate` (~3 h on a CPU).
+
+### Faster: copy the clips instead of downloading them
+
+If both machines are on the same network or you have a USB drive, copying the finished data takes
+minutes instead of hours and is byte-identical. Copy `data/plates/` and `data/faces/` along with
+the bundle, then run `make fetch`: it skips every clip that is already there and only downloads
+what's missing (YouTube clips stay internal: see DATA_NOTICE.md).
+
+```bash
+rsync -a --info=progress2 data/plates data/faces OTHER_PC:Abdullah-Mubark/gcc-vision-testbench/data/
 ```
 
 ## Data layout
