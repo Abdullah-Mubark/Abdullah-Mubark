@@ -1,4 +1,5 @@
-"""Extract frames from every clip in the manifest at a fixed rate (default 2 fps).
+"""Extract frames from every clip in the manifest at a fixed rate (default 2 fps; extract.fps_by_task
+can set a rate per task, e.g. fewer plate frames to label).
 
 Output: data/frames/{clip_id}/000000.jpg ... plus index.csv (frame, timestamp, source frame).
 """
@@ -52,11 +53,16 @@ def extract_sequence(src: Path, out: Path, fps: float, src_fps: float, mode: str
     return rows
 
 
+def task_fps(cfg: dict, task: str) -> float:
+    """extract.fps_by_task[task] if set, else extract.fps."""
+    return float((cfg.get("fps_by_task") or {}).get(task, cfg.get("fps", 2)))
+
+
 def extract_clip(settings: Settings, row: dict, cfg: dict, force: bool, log) -> str:
     """Returns 'done', 'skipped'."""
     src = clip_source(settings, row)
     out = frames_dir(settings, row["clip_id"])
-    fps = float(cfg.get("fps", 2))
+    fps = task_fps(cfg, row["task"])
     fmt = str(cfg.get("image_format", "jpg")).lower()
     if fmt not in ("jpg", "png"):
         raise ConfigError(f"prep.yaml extract.image_format must be jpg or png, got {fmt!r}")
@@ -102,15 +108,16 @@ def main(argv: list[str] | None = None) -> int:
     settings, log = init("extract_frames", args)
     cfg = dict(settings.load("prep.yaml").get("extract") or {})
     if args.fps:
-        cfg["fps"] = args.fps
-    if float(cfg.get("fps", 2)) <= 0:
-        raise ConfigError("extract.fps must be > 0")
+        cfg["fps"], cfg["fps_by_task"] = args.fps, {}  # --fps wins over the per-task rates too
+    rates = {t: task_fps(cfg, t) for t in ("plate", "face")}
+    if min(rates.values()) <= 0:
+        raise ConfigError("extract.fps and extract.fps_by_task must be > 0")
 
     clips = select_clips(settings, args, cfg.get("tasks"))
     if not clips:
         log.info("No clips in the manifest match - run 'make collect' first.")
         return 0
-    log.info("%d clip(s) selected, %.3g fps", len(clips), float(cfg.get("fps", 2)))
+    log.info("%d clip(s) selected (fps: %s)", len(clips), ", ".join(f"{t} {r:g}" for t, r in rates.items()))
     if args.dry_run:
         for r in clips:
             print(f"{r['clip_id']:45} {r['path']}")

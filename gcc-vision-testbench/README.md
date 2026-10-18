@@ -150,6 +150,9 @@ re-run automatically when their settings or input change.
 ### Frame extraction
 
 Takes every clip in the manifest at `extract.fps` (default 2, never more than the source fps).
+`extract.fps_by_task` overrides it per task: plates default to 0.5 fps (30 frames per 60 s clip,
+about 780 for the 26 default clips) so a labelling round stays manageable, while ChokePoint stays
+at 2 fps. `make extract ARGS="--fps 2"` overrides both.
 Output goes to `data/frames/{clip_id}/000000.jpg`. Each clip folder gets an `index.csv` with the
 frame name, timestamp and source frame number. ChokePoint image sequences are subsampled and
 hard-linked rather than re-encoded. They keep their original file names so the ground truth still
@@ -218,12 +221,14 @@ Runs detectors over the kept frames and writes draft labels for correction in CV
   frames; boxes are marked `source="auto"`.
 - `predictions.jsonl`: every box with its confidence score.
 
-To turn it on:
+The plate detector is on by default (`preannotate.detectors.plate` in `config/prep.yaml`):
 
-1. Run `make install-models`.
-2. Set `enabled: true` on a detector in `config/prep.yaml`.
-3. For plates, `weights:` already points at `models/plate_yolov8.pt` from `make train-plate`.
-   Detection runs at `imgsz: 1280` so plates in 4K frames aren't shrunk to a few pixels.
+1. Run `make install-models`, then `make train-plate` (or bring `models/` over with `make pack`/`make fetch`).
+   Without `models/plate_yolov8.pt` the plate detector is skipped with a warning, so `make prep`
+   still works on a fresh machine.
+2. Detection runs at `imgsz: 1280`, so plates in 4K frames aren't shrunk to a few pixels, and at
+   a low `conf: 0.15`: deleting a wrong draft box in CVAT is quicker than drawing a missed one.
+3. To turn a detector on or off, set `enabled:` on it in `config/prep.yaml`.
 4. For faces, use `adapter: insightface` (RetinaFace family) or `adapter: yolov8` with
    YOLOv8-face weights.
 

@@ -145,9 +145,17 @@ def main(argv: list[str] | None = None) -> int:
         label = d.get("label", name)
         if label not in classes:
             raise ConfigError(f"preannotate.detectors.{name}.label {label!r} is not in preannotate.classes {classes}")
+        params = resolve_params(settings, {"label": label, **(d.get("params") or {})})
+        weights = params.get("weights")
+        if isinstance(weights, str) and "/" in weights and not Path(weights).exists() \
+                and not (settings.root / weights).exists():
+            # A path (not a bare name like yolov8n.pt that Ultralytics downloads) that isn't there yet,
+            # e.g. a new machine before make train-plate / make fetch: skip instead of failing prep.
+            log.warning("Skipping detector %s: weights %s not found (make train-plate, or copy models/)",
+                        name, weights)
+            continue
         det_cfgs.append({"name": name, "adapter": d["adapter"], "label": label,
-                         "tasks": list(d.get("tasks") or ["plate", "face"]),
-                         "params": resolve_params(settings, {"label": label, **(d.get("params") or {})})})
+                         "tasks": list(d.get("tasks") or ["plate", "face"]), "params": params})
     if not det_cfgs:
         log.info("No detectors enabled in prep.yaml (preannotate.detectors.*.enabled) - skipping pre-annotation.")
         return 0

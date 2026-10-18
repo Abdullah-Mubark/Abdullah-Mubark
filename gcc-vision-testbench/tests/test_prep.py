@@ -54,6 +54,7 @@ def test_hashes():
 
 
 def test_extract_and_dedupe(cfg_dir, clips):
+    edit_yaml(cfg_dir / "prep.yaml", lambda c: c["extract"].update(fps_by_task={}))  # plain 2 fps here
     args = ["--config-dir", str(cfg_dir)]
     assert extract.main(args) == 0
     vdir = clips / "frames/plate-ksa-night-clip_0001"
@@ -91,6 +92,16 @@ def test_extract_and_dedupe(cfg_dir, clips):
     assert len(read_index(vdir)) == 5
 
 
+def test_extract_fps_by_task(cfg_dir, clips):
+    edit_yaml(cfg_dir / "prep.yaml", lambda c: c["extract"].update(fps=2, fps_by_task={"plate": 1}))
+    args = ["--config-dir", str(cfg_dir)]
+    assert extract.main(args) == 0
+    assert len(read_index(clips / "frames/plate-ksa-night-clip_0001")) == 5          # 5 s video at 1 fps
+    assert len(read_index(clips / "frames/face-chokepoint-P1E_S1__P1E_S1_C1")) == 2  # faces still at 2 fps
+    assert extract.main(args + ["--fps", "2"]) == 0                                  # --fps overrides both
+    assert len(read_index(clips / "frames/plate-ksa-night-clip_0001")) == 10
+
+
 def test_extract_missing_source(cfg_dir, clips):
     (clips / "plates/ksa/night/clip_0001.mp4").unlink()
     assert extract.main(["--config-dir", str(cfg_dir), "--task", "plate"]) == 1
@@ -113,7 +124,7 @@ class FakePlate(BaseAdapter):
 
 def test_preannotate(cfg_dir, clips, tmp_path):
     args = ["--config-dir", str(cfg_dir)]
-    assert preannotate.main(args) == 0  # nothing enabled -> no-op
+    assert preannotate.main(args) == 0  # shipped config: plate weights missing here -> skipped, no-op
     extract.main(args)
     dedupe.main(args)
     edit_yaml(cfg_dir / "prep.yaml", lambda c: c["preannotate"]["detectors"].update(
@@ -142,6 +153,18 @@ def test_preannotate(cfg_dir, clips, tmp_path):
     mtime = (out / "cvat/annotations.xml").stat().st_mtime_ns
     assert preannotate.main(args) == 0
     assert (out / "cvat/annotations.xml").stat().st_mtime_ns == mtime  # up to date
+
+
+def test_preannotate_skips_missing_weights(cfg_dir, clips, capsys):
+    extract.main(["--config-dir", str(cfg_dir)])
+    FakePlate.loaded = None
+    edit_yaml(cfg_dir / "prep.yaml", lambda c: c["preannotate"]["detectors"].update(
+        plate={"enabled": True, "adapter": "fake_plate", "tasks": ["plate"], "label": "plate",
+               "params": {"weights": "models/plate_yolov8.pt"}}, face={"enabled": False}))
+    assert preannotate.main(["--config-dir", str(cfg_dir)]) == 0
+    assert FakePlate.loaded is None                                   # never loaded
+    assert "weights models/plate_yolov8.pt not found" in capsys.readouterr().err
+    assert not (clips / "annotations").exists()
 
 
 def test_preannotate_bad_label(cfg_dir, clips):
